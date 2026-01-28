@@ -57,6 +57,26 @@
     return d;
   }
 
+  function getFallbackStore() {
+    return {
+      load: function (key) {
+        try { return JSON.parse(localStorage.getItem(key) || "null"); }
+        catch { return null; }
+      },
+      save: function (key, val) {
+        localStorage.setItem(key, JSON.stringify(val || {}));
+      }
+    };
+  }
+
+  function getStore() {
+    return window.PortalApp?.Storage || getFallbackStore();
+  }
+
+  function normalizeState(raw) {
+    return (raw && typeof raw === "object") ? raw : {};
+  }
+
   function pruneOld(state, keep = 18) {
     const keys = Object.keys(state).sort();
     while (keys.length > keep) delete state[keys.shift()];
@@ -98,8 +118,8 @@
   function applyRowClasses(row, done, isOverdue) {
     row.classList.remove("weekly-good", "weekly-warn", "weekly-overdue");
     if (done) row.classList.add("weekly-good");
-    else if (isOverdue) row.classList.add("weekly-overdue");
-    else row.classList.add("weekly-warn");
+    else if (isOverdue) row.classList.add("weekly-overdue"); // your CSS should flash this
+    else row.classList.add("weekly-warn"); // red border/toggle, no flashing
   }
 
   function render(card, state, targetKey, cfg, now, targetMonday) {
@@ -112,7 +132,7 @@
       const done = !!state[targetKey]?.[t.id];
 
       if (input) input.checked = done;
-      if (row) applyRowClasses(row, done, isOverdue);
+      if (row) applyRowClasses(row, done, isOverdue && !done);
     });
   }
 
@@ -126,9 +146,7 @@
       tasks: (config.tasks || defaultConfig.tasks).slice()
     };
 
-    const store = window.PortalApp?.Storage;
-    if (!store) return;
-
+    const store = getStore();
     const now = new Date();
 
     // Determine the current target week (next Monday)
@@ -139,18 +157,19 @@
     const prevTargetMon = addDays(curTargetMon, -7);
     const prevTargetKey = dateKey(prevTargetMon);
 
-    const state = store.load(STORAGE_KEY);
+    let state = normalizeState(store.load(STORAGE_KEY));
     pruneOld(state);
 
     // IMPORTANT: do NOT create fake previous entries unless they already exist
     const prevExists = Object.prototype.hasOwnProperty.call(state, prevTargetKey);
-    const prevDone = prevExists ? !!state[prevTargetKey]?.[cfg.tasks[0].id] : true;
+    const firstTaskId = cfg.tasks[0]?.id;
+    const prevDone = prevExists ? !!state[prevTargetKey]?.[firstTaskId] : true;
     const prevIsOverdue = now >= overdueStart(prevTargetMon);
 
     // Decide which “week to schedule” to display:
     // 1) If previous target exists, is overdue, and not done, show that angry one.
     // 2) Otherwise show current target if we're at/after Wednesday availability,
-    //    and hide on Sat+ only if done (if not done it will go overdue + flash).
+    //    and show Sat+ ONLY if not done (angry). If done on Sat+, hide.
     let targetMonToShow = null;
 
     if (prevExists && !prevDone && prevIsOverdue) {
@@ -159,15 +178,12 @@
       const avail = availableStart(curTargetMon);
       const od = overdueStart(curTargetMon);
 
-      // show Wed–Fri always once available
-      const inPreDueWindow = (now >= avail && now < od);
-
-      // show Sat+ only if not done (angry)
-      // BUT we only know done after ensuring state for current target
+      // Ensure current entry exists so we can correctly determine "done"
       ensureState(state, curTargetKey, cfg.tasks);
       store.save(STORAGE_KEY, state);
 
-      const curDone = !!state[curTargetKey]?.[cfg.tasks[0].id];
+      const curDone = !!state[curTargetKey]?.[firstTaskId];
+      const inPreDueWindow = (now >= avail && now < od);
       const inOverdueWindow = (now >= od && !curDone);
 
       if (inPreDueWindow || inOverdueWindow) {
@@ -186,6 +202,7 @@
 
     slot.innerHTML = buildHTML(cfg, labelForWeek(targetMonToShow));
     const card = slot.querySelector('[data-widget="weekly"]');
+    if (!card) return;
 
     render(card, state, targetKey, cfg, new Date(), targetMonToShow);
 
@@ -202,12 +219,11 @@
       pruneOld(state);
       store.save(STORAGE_KEY, state);
 
-      // If completed and we're past Saturday cutoff, hide it immediately.
-      const doneNow = !!state[targetKey][id];
       const now2 = new Date();
       const od2 = overdueStart(targetMonToShow);
+      const doneNow = !!state[targetKey][id];
 
-      // If it's done and we're in the "hide window" (Sat+), disappear.
+      // If completed and we're past Saturday cutoff, hide it immediately.
       if (doneNow && now2 >= od2) {
         slot.innerHTML = "";
         return;
