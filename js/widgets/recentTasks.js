@@ -17,14 +17,28 @@
       .replaceAll("'", "&#039;");
   }
 
-  function loadState() {
-    const raw = window.PortalApp?.Storage?.load(STORE_KEY);
-    if (raw && typeof raw === "object" && Array.isArray(raw.items)) return raw;
-    return { items: [] };
+  function getFallbackStore() {
+    return {
+      load: function (key) {
+        try { return JSON.parse(localStorage.getItem(key) || "null"); }
+        catch { return null; }
+      },
+      save: function (key, val) {
+        localStorage.setItem(key, JSON.stringify(val || {}));
+      }
+    };
   }
 
-  function saveState(state) {
-    window.PortalApp?.Storage?.save(STORE_KEY, state);
+  function getStore() {
+    return window.PortalApp?.Storage || getFallbackStore();
+  }
+
+  function normalizeState(raw) {
+    const state = (raw && typeof raw === "object") ? raw : {};
+    if (!Array.isArray(state.items)) state.items = [];
+    // Cap length (just in case remote got spammed or older code wrote junk)
+    if (state.items.length > MAX_ITEMS) state.items = state.items.slice(0, MAX_ITEMS);
+    return state;
   }
 
   function template() {
@@ -90,7 +104,11 @@
 
       host.innerHTML = template();
 
-      const state = loadState();
+      const store = getStore();
+      let state = normalizeState(store.load(STORE_KEY));
+
+      // If we had to normalize (or it's first run), persist the normalized shape
+      store.save(STORE_KEY, state);
 
       const plusBtn = host.querySelector(".recent-plus");
       const backdrop = host.querySelector(".rt-modal-backdrop");
@@ -112,15 +130,19 @@
         input.value = "";
       }
 
+      function saveAndRender() {
+        // keep it trimmed and clean
+        if (state.items.length > MAX_ITEMS) state.items = state.items.slice(0, MAX_ITEMS);
+        store.save(STORE_KEY, state);
+        render(host, state);
+      }
+
       function addTask() {
         const text = (input.value || "").trim();
         if (!text) return;
 
         state.items.unshift({ id: nowId(), text, createdAt: Date.now() });
-        if (state.items.length > MAX_ITEMS) state.items = state.items.slice(0, MAX_ITEMS);
-
-        saveState(state);
-        render(host, state);
+        saveAndRender();
         closeModal();
       }
 
@@ -156,12 +178,10 @@
         if (!id) return;
 
         state.items = state.items.filter(x => x.id !== id);
-        saveState(state);
-        render(host, state);
+        saveAndRender();
       });
 
       render(host, state);
-      // Ensure modal starts closed
       closeModal();
     }
   };
