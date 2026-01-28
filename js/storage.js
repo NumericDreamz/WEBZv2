@@ -2,7 +2,9 @@ window.PortalApp = window.PortalApp || {};
 
 PortalApp.Storage = (function () {
   const MASTER_KEY = "ats_portal_state_v1";
-  const REMOTE_CACHE_KEY = "portal_state_cache_v1"; // keep in sync with persistence.js/console tests
+
+  // Compatibility key: your earlier console scripts + some persistence setups used this
+  const REMOTE_CACHE_KEY = "portal_state_cache_v1";
 
   // Debounce remote writes so we don't hammer Apps Script
   const PUSH_DEBOUNCE_MS = 700;
@@ -17,8 +19,7 @@ PortalApp.Storage = (function () {
     }
   }
 
-  function mirrorToRemoteCache(master) {
-    // This makes your old console POST + any persistence.js that reads this key still work.
+  function mirrorRemoteCache(master) {
     try {
       localStorage.setItem(REMOTE_CACHE_KEY, JSON.stringify(master || {}));
     } catch (_) {}
@@ -28,7 +29,7 @@ PortalApp.Storage = (function () {
     const raw = localStorage.getItem(MASTER_KEY);
     const master = raw ? safeParse(raw) : {};
 
-    // Migrate legacy keys into master once
+    // Migrate legacy keys into master once (so backup captures everything)
     let changed = false;
 
     for (let i = 0; i < localStorage.length; i++) {
@@ -50,33 +51,30 @@ PortalApp.Storage = (function () {
       changed = true;
     }
 
-    // Keep cache key mirrored too
-    if (changed) {
-      localStorage.setItem(MASTER_KEY, JSON.stringify(master));
-    }
-    mirrorToRemoteCache(master);
-
+    if (changed) localStorage.setItem(MASTER_KEY, JSON.stringify(master));
+    mirrorRemoteCache(master);
     return master;
   }
 
   function writeMaster(master) {
     localStorage.setItem(MASTER_KEY, JSON.stringify(master || {}));
-    mirrorToRemoteCache(master);
+    mirrorRemoteCache(master);
   }
 
   async function pushNow(master) {
     const p = window.PortalApp?.Persistence;
+    if (!p || typeof p.setState !== "function") {
+      return { ok: false, reason: "PortalApp.Persistence.setState missing" };
+    }
 
-    // If persistence.js isn't wired, nothing remote will happen.
-    if (!p || typeof p.setState !== "function") return { ok: false, reason: "no_persistence" };
+    // mirror first in case persistence.js reads REMOTE_CACHE_KEY internally
+    mirrorRemoteCache(master);
 
-    // Some versions of persistence.js might ignore args and read from REMOTE_CACHE_KEY,
-    // so we mirror first (already done in writeMaster/save).
     try {
       const res = await p.setState(master);
       return res || { ok: true };
     } catch (e) {
-      console.warn("Remote push failed:", e);
+      console.warn("[Portal] Remote push failed:", e);
       return { ok: false, reason: "push_failed", error: String(e) };
     }
   }
@@ -86,10 +84,11 @@ PortalApp.Storage = (function () {
     pushTimer = setTimeout(() => { pushNow(master); }, PUSH_DEBOUNCE_MS);
   }
 
-  // Pull remote state and overwrite local master (remote becomes source of truth)
-  async function bootstrap() {
+  async function pullNow() {
     const p = window.PortalApp?.Persistence;
-    if (!p || typeof p.getState !== "function") return { ok: false, reason: "no_persistence" };
+    if (!p || typeof p.getState !== "function") {
+      return { ok: false, reason: "PortalApp.Persistence.getState missing" };
+    }
 
     try {
       const remote = await p.getState();
@@ -98,7 +97,7 @@ PortalApp.Storage = (function () {
       writeMaster(remote);
       return { ok: true, state: remote };
     } catch (e) {
-      console.warn("Remote pull failed:", e);
+      console.warn("[Portal] Remote pull failed:", e);
       return { ok: false, reason: "pull_failed", error: String(e) };
     }
   }
@@ -126,20 +125,30 @@ PortalApp.Storage = (function () {
     const obj = safeParse(jsonText);
     if (!obj || typeof obj !== "object") throw new Error("Backup file is not valid JSON.");
     writeMaster(obj);
-
-    // If you import, push it up too
     schedulePush(obj);
   }
 
-  // Handy manual controls (you can wire these to SYNC button if you want)
+  // app.js calls this
+  async function init() {
+    const pulled = await pullNow();
+
+    // If remote is empty but local has state, push local up for first-time setup
+    if (pulled?.ok && !pulled?.state) {
+      const local = readMaster();
+      if (Object.keys(local).length) await pushNow(local);
+    }
+
+    return pulled;
+  }
+
   async function forcePush() {
     const master = readMaster();
     return pushNow(master);
   }
 
   async function forcePull() {
-    return bootstrap();
+    return pullNow();
   }
 
-  return { load, save, exportAll, importAll, bootstrap, forcePush, forcePull };
+  return { load, save, exportAll, importAll, init, forcePush, forcePull };
 })();
