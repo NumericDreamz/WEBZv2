@@ -1,8 +1,8 @@
 (function () {
   const REMOTE = {
-    url: "PASTE_YOUR_SCRIPT_WEB_APP_EXEC_URL_HERE",
+    url: "https://script.google.com/macros/s/AKfycbzdytDOr7q5IhVn-WroARALOGX7lwXK3fBc2zb6Zi63e1h3_jSQ-0PJ9Zv4HQH1DFo/exec",
     dashboardId: "ats-portal",          // any unique string
-    token: "PASTE_THE_SAME_SECRET_HERE",
+    token: "h0wD0T#T#3l1TtLcR0C0D1L3",
     debounceMs: 800
   };
 
