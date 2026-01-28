@@ -1,12 +1,22 @@
 (function () {
-  function boot() {
-    // Monthly on the left
+  async function boot() {
+    // If persistence.js is loaded, pull remote state first.
+    // If it's not loaded, this does nothing and your dashboard behaves like before.
+    try {
+      if (window.PortalApp && PortalApp.Storage && typeof PortalApp.Storage.init === "function") {
+        await PortalApp.Storage.init();
+      }
+    } catch (err) {
+      console.warn("[Portal] Storage.init failed (falling back to local only):", err);
+    }
+
+    // Monthly on the left (keep your config intact)
     window.PortalWidgets.Monthly.init("monthly-metrics-slot", {
       metrics: [
         { id: "loto_obs", label: "LOTO Observations", target: 4 },
         { id: "care_convos", label: "Care Conversations", target: 5 },
 
-        // NEW: Recognition points tracker
+        // Recognition points tracker
         { id: "recognition", type: "recognition", label: "Recognition", allotment: 140 }
       ]
     });
@@ -20,7 +30,7 @@
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
+    document.addEventListener("DOMContentLoaded", function () { boot(); });
   } else {
     boot();
   }
