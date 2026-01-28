@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATS Portal</title>
+
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <!-- JS modules (plain old script files, no bundler, no drama) -->
+  <script src="js/storage.js" defer></script>
+  <script src="js/widgets/monthly.js" defer></script>
+  <script src="js/widgets/weekly.js" defer></script>
+  <script src="js/widgets/daily.js" defer></script>
+  <script src="js/widgets/yearly.js" defer></script>
+  <script src="js/widgets/recentTasks.js" defer></script>
+  <script src="js/backup.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+
+<body>
+  <div class="logo">
+    <img src="images/logo.png" alt="Company Logo">
+  </div>
+
+<div class="sync-bar" id="sync-bar">
+  <button class="sync-btn sync-stale" type="button" id="sync-now">SYNC</button>
+  <span class="sync-text" id="sync-text">Not synced today</span>
+
+  <!-- hidden input for import -->
+  <input type="file" id="sync-file" accept=".json,application/json" style="display:none;">
+</div>
+
+
+  <div class="page-layout">
+
+    <!-- ========================================================= -->
+    <!-- LEFT COLUMN WIDGETS -->
+    <!-- ========================================================= -->
+    <aside class="side-col">
+      <div id="monthly-metrics-slot"></div>
+      <div class="widget-spacer"></div>
+      <div id="yearly-metrics-slot"></div>
+    </aside>
+
+    <!-- ========================================================= -->
+    <!-- CENTER LINKS GRID -->
+    <!-- ========================================================= -->
+    <main class="center-col">
+
+      <!-- TOP 5: always visible -->
+      <div class="grid-container favorites-grid">
+
+        <a href="https://work.efactorypro.com/" class="grid-item" target="_blank">
+          <img src="images/EFP.png" alt="eFactory Pro">eFactory Pro
+        </a>
+
+        <a href="https://app.industrysafe.com/ADVANCEDTECH/singlesignon.asp" class="grid-item" target="_blank">
+          <img src="images/industrysafe.png" alt="Industry Safe">Industry Safe
+        </a>
+
+        <a href="http://cornerstone.advancedtech.com/" class="grid-item" target="_blank">
+          <img src="images/Cornerstone.jpg" alt="Cornerstone Training">Cornerstone Training
+        </a>
+
+        <a href="https://bonusly.advancedtech.com/" class="grid-item" target="_blank">
+          <img src="images/Bonusly.png" alt="Bonusly">Bonusly
+        </a>
+
+        <a href="https://workday.advancedtech.com/" class="grid-item" target="_blank">
+          <img src="images/Workday.png" alt="Workday">Workday
+        </a>
+
+      </div>
+
+      <!-- EVERYTHING ELSE: tucked into a dropdown -->
+      <details class="more-links" id="more-links">
+        <summary>More Links</summary>
+
+        <div class="grid-container">
+
+          <a href="https://sdplus.advancedtech.com/" class="grid-item" target="_blank">
+            <img src="images/myEnt.png" alt="Self Service Request Portal (myEnterprise)">myEnterprise
+          </a>
+
+          <a href="https://www.office.com/?auth=2&home=1" class="grid-item" target="_blank">
+            <img src="images/office.jpeg" alt="Office 365">Office 365
+          </a>
+
+          <a href="https://wd5.myworkday.com/advancedtech/d/home.htmld#selectedWorklet=501$70" class="grid-item">
+            <img src="images/ben.png" alt="Benifits Enrollment">Benifits Enrollment
+          </a>
+
+          <a href="https://advancedtech1.sharepoint.com/sites/Safety/SitePages/Beyond-Zero-Challenge.aspx" class="grid-item" target="_blank">
+            <img src="images/BZC.png" alt="Beyond Zero Challenge">Beyond Zero Challenge
+          </a>
+
+          <a href="https://concur.advancedtech.com/" class="grid-item" target="_blank">
+            <img src="images/Concur.jpeg" alt="Concur Travel">Concur Travel
+          </a>
+
+          <a href="https://advancedtech1.sharepoint.com/sites/FMSOS" class="grid-item" target="_blank">
+            <img src="images/FMSOS.png" alt="FMS OS">FMS OS
+          </a>
+
+          <a href="https://advancedtech1.sharepoint.com/sites/atskb/SitePages/Home.aspx" class="grid-item" target="_blank">
+            <img src="images/FMSTechLib.png" alt="FMS Technical Library">FMS Technical Library
+          </a>
+
+          <a href="https://advancedtech1.sharepoint.com/sites/IT/SitePages/Support.aspx" class="grid-item" target="_blank">
+            <img src="images/IT.jpeg" alt="IT Helpdesk">IT Helpdesk
+          </a>
+
+          <a href="https://jobs.advancedtech.com/en/search-jobs/longview%20texas/37820/1" class="grid-item" target="_blank">
+            <img src="images/job.png" alt="Job Openings">Job Openings
+          </a>
+
+          <a href="https://app.powerbi.com/" class="grid-item" target="_blank">
+            <img src="images/PowerBI.png" alt="Power BI">Power BI
+          </a>
+
+          <a href="https://quarantine.advancedtech.com/" class="grid-item" target="_blank">
+            <img src="images/Proofpoint.jpeg" alt="Proofpoint SPAM Quarantine">Proofpoint SPAM Quarantine
+          </a>
+
+          <a href="https://advancedtech1.sharepoint.com/sites/Reliability360/SitePages/R360-Support-Network-Request.aspx" class="grid-item" target="_blank">
+            <img src="images/R360-Sup.png" alt="R360 Support Network">R360 Support Network
+          </a>
+
+          <a href="https://advancedtech1.sharepoint.com/sites/Reliability360" class="grid-item" target="_blank">
+            <img src="images/R360.png" alt="R360 Reliability Network">R360 Reliability Network
+          </a>
+
+          <a href="https://advancedtech1.sharepoint.com/sites/HomeHub/SitePages/Self-Service-Password-Reset.aspx" class="grid-item" target="_blank">
+            <img src="images/PW.png" alt="Self Service Passwork Reset">Password Reset
+          </a>
+
+          <a href="http://www.staplesadvantage.com/" class="grid-item" target="_blank">
+            <img src="images/staples.png" alt="Staples Office Supplies">Staples
+          </a>
+
+          <a href="https://atsadvancedtechnologyservices.corpmerchandise.com/" class="grid-item" target="_blank">
+            <img src="images/ATS-Swag.jpg" alt="ATS Swag">ATS Swag
+          </a>
+
+          <a href="http://ultipro.advancedtech.com/" class="grid-item" target="_blank">
+            <img src="images/UltiPro.png" alt="UltiPro">UltiPro
+          </a>
+
+          <a href="https://advancedtech1.sharepoint.com/sites/ATSOS/SitePages/People%20CE%204%20Employee%20Development.aspx?csf=1&web=1&e=efcXwX" class="grid-item" target="_blank">
+            <img src="images/techprog.png" alt="Tech Progression">Tech Progression
+          </a>
+
+          <a href="https://planner.cloud.microsoft/webui/myplans/" class="grid-item" target="_blank">
+            <img src="images/Planner.png" alt="Planner">Planner
+          </a>
+
+          <a href="https://teams.microsoft.com/v2/?lm=deeplink&lmsrc=officeWaffle&login_hint_safe=juwillia@advancedtech.com" class="grid-item" target="_blank">
+            <img src="images/Teams.png" alt="Teams">Teams
+          </a>
+
+
+
+        </div>
+      </details>
+
+    <!-- ========================================================= -->
+    <!-- RECENT TASKS WIDGETS -->
+    <!-- ========================================================= -->
+
+<div id="recent-tasks-slot"></div>
+
+
+    </main>
+
+    <!-- ========================================================= -->
+    <!-- RIGHT COLUMN WIDGETS -->
+    <!-- ========================================================= -->
+    <aside class="side-col">
+      <div id="daily-metrics-slot"></div>
+      <div class="widget-spacer"></div>
+      <div id="weekly-metrics-slot"></div>
+    </aside>
+
+  </div>
+
+  </details>
+
+</main>
+
+
+<!-- ========================================================= -->
+    <!-- RIGHT COLUMN WIDGETS -->
+<!-- ========================================================= -->
+
+    <aside class="side-col">
+      <div id="daily-metrics-slot"></div>
+      <div class="widget-spacer"></div>
+      <div id="weekly-metrics-slot"></div>
+    </aside>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,82 @@
+{
+  "metrics_monthly_v1": {
+    "2026-01": {
+      "loto_obs": 4
+    }
+  },
+  "portal_metrics_yearly_v1": {
+    "2026": {
+      "locked": true,
+      "completed": true,
+      "techs": {
+        "John Rushing": true,
+        "Phillip Houchin": true,
+        "Quaveon Cole": true,
+        "Michael Scoggins": true,
+        "Russell Allen": true,
+        "Jamie McCollum": true,
+        "Maxwell Sepulvado": true,
+        "Steve Gregory": true,
+        "Tyler Bumpers": true
+      }
+    }
+  },
+  "portal_metrics_monthly_v2": {
+    "2026-01": {
+      "loto_obs": 4
+    }
+  },
+  "portal_metrics_weekly_v1": {
+    "2026-W04": {
+      "make_next_week_schedule": false
+    },
+    "2026-W03": {
+      "make_next_week_schedule": false
+    }
+  },
+  "portal_metrics_daily_v1": {
+    "2026-01-23": {
+      "check_hazards": true,
+      "review_work_orders": true
+    }
+  },
+  "portal_metrics_yearly_v2": {
+    "2026": {
+      "tasks": {
+        "annual_loto": {
+          "locked": true,
+          "completed": true,
+          "people": {
+            "Allen Russell": true
+          }
+        },
+        "plan_for_zero": {
+          "locked": true,
+          "completed": false,
+          "people": {
+            "Monty Rocha": false,
+            "Russell Allen": true,
+            "Jamie McCollum": true,
+            "Tyler Bumpers": true,
+            "Steven Gregory": true,
+            "Maxwell Sepulvado": true,
+            "John Rushing": true,
+            "Phillip Houchin": true,
+            "Michael Scoggins": true,
+            "Quaveon Cole": true
+          }
+        }
+      }
+    }
+  },
+  "portal_metrics_monthly_v1": {
+    "2026-01": {
+      "loto_obs": 4
+    }
+  },
+  "portal_metrics_weekly_v2": {
+    "2026-01-26": {
+      "make_next_week_schedule": false
+    }
+  }
+}
