@@ -1,122 +1,154 @@
-(function () {
-  const LAST_SYNC_KEY = "ats_portal_last_sync_date_v1";
+window.PortalApp = window.PortalApp || {};
 
-  function localDateKey(d = new Date()) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
+PortalApp.Storage = (function () {
+  const MASTER_KEY = "ats_portal_state_v1";
+
+  // Compatibility key: your earlier console scripts + some persistence setups used this
+  const REMOTE_CACHE_KEY = "portal_state_cache_v1";
+
+  // Debounce remote writes so we don't hammer Apps Script
+  const PUSH_DEBOUNCE_MS = 700;
+  let pushTimer = null;
+
+  function safeParse(raw) {
+    try {
+      const v = JSON.parse(raw);
+      return (v && typeof v === "object") ? v : {};
+    } catch {
+      return {};
+    }
   }
 
-  function pad(n) { return String(n).padStart(2, "0"); }
-
-  // NEW: YYMMDD-HHMM.json  (24-hour time)
-  function filename() {
-    const d = new Date();
-    const yy = String(d.getFullYear()).slice(-2);
-    const mm = pad(d.getMonth() + 1);
-    const dd = pad(d.getDate());
-    const hh = pad(d.getHours());
-    const mi = pad(d.getMinutes());
-    return `${yy}${mm}${dd}-${hh}${mi}.json`;
+  function mirrorRemoteCache(master) {
+    try {
+      localStorage.setItem(REMOTE_CACHE_KEY, JSON.stringify(master || {}));
+    } catch (_) {}
   }
 
-  function download(text, name) {
-    const blob = new Blob([text], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
+  function readMaster() {
+    const raw = localStorage.getItem(MASTER_KEY);
+    const master = raw ? safeParse(raw) : {};
 
-  function markSyncedToday() {
-    localStorage.setItem(LAST_SYNC_KEY, localDateKey());
-  }
+    // Migrate legacy keys into master once (so backup captures everything)
+    let changed = false;
 
-  function updateSyncUI() {
-    const btn = document.getElementById("sync-now");
-    if (!btn) return;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || k === MASTER_KEY) continue;
 
-    const last = localStorage.getItem(LAST_SYNC_KEY);
-    const today = localDateKey();
-    const good = (last === today);
+      const looksLikeOurs =
+        k.startsWith("portal_metrics_") ||
+        k.startsWith("metrics_") ||
+        k.includes("_metrics_");
 
-    btn.classList.toggle("sync-good", good);
-    btn.classList.toggle("sync-stale", !good);
-  }
+      if (!looksLikeOurs) continue;
+      if (master[k] !== undefined) continue;
 
-  function getStore() {
-    const s = window.PortalApp && window.PortalApp.Storage;
-    if (!s) return null;
-    if (typeof s.exportAll !== "function") return null;
-    if (typeof s.importAll !== "function") return null;
-    return s;
-  }
+      const legacyRaw = localStorage.getItem(k);
+      if (!legacyRaw) continue;
 
-  function initSyncUI() {
-    // If you left the extra span in HTML, hide it.
-    const syncText = document.getElementById("sync-text");
-    if (syncText) syncText.style.display = "none";
-
-    const store = getStore();
-    if (!store) {
-      setTimeout(initSyncUI, 50);
-      return;
+      master[k] = safeParse(legacyRaw);
+      changed = true;
     }
 
-    const syncBtn = document.getElementById("sync-now");
-    const syncFile = document.getElementById("sync-file");
-    if (!syncBtn || !syncFile) return;
-
-    if (syncBtn.dataset.bound !== "1") {
-      syncBtn.dataset.bound = "1";
-      syncBtn.addEventListener("click", (e) => {
-        // Shift+Click = import; normal click = export
-        if (e.shiftKey) {
-          syncFile.click();
-          return;
-        }
-
-        const json = store.exportAll();
-        download(json, filename());
-        markSyncedToday();
-        updateSyncUI();
-      });
-    }
-
-    if (syncFile.dataset.bound !== "1") {
-      syncFile.dataset.bound = "1";
-      syncFile.addEventListener("change", async () => {
-        const file = syncFile.files && syncFile.files[0];
-        if (!file) return;
-
-        try {
-          const text = await file.text();
-          store.importAll(text);
-          markSyncedToday();
-          updateSyncUI();
-          location.reload();
-        } catch (e) {
-          alert(String(e.message || e));
-        } finally {
-          syncFile.value = "";
-        }
-      });
-    }
-
-    updateSyncUI();
-    setInterval(updateSyncUI, 60 * 1000);
+    if (changed) localStorage.setItem(MASTER_KEY, JSON.stringify(master));
+    mirrorRemoteCache(master);
+    return master;
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initSyncUI);
-  } else {
-    initSyncUI();
+  function writeMaster(master) {
+    localStorage.setItem(MASTER_KEY, JSON.stringify(master || {}));
+    mirrorRemoteCache(master);
   }
 
-  window.PortalBackup = { initBackupUI: initSyncUI };
+  async function pushNow(master) {
+    const p = window.PortalApp?.Persistence;
+    if (!p || typeof p.setState !== "function") {
+      return { ok: false, reason: "PortalApp.Persistence.setState missing" };
+    }
+
+    // mirror first in case persistence.js reads REMOTE_CACHE_KEY internally
+    mirrorRemoteCache(master);
+
+    try {
+      const res = await p.setState(master);
+      return res || { ok: true };
+    } catch (e) {
+      console.warn("[Portal] Remote push failed:", e);
+      return { ok: false, reason: "push_failed", error: String(e) };
+    }
+  }
+
+  function schedulePush(master) {
+    if (pushTimer) clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => { pushNow(master); }, PUSH_DEBOUNCE_MS);
+  }
+
+  async function pullNow() {
+    const p = window.PortalApp?.Persistence;
+    if (!p || typeof p.getState !== "function") {
+      return { ok: false, reason: "PortalApp.Persistence.getState missing" };
+    }
+
+    try {
+      const remote = await p.getState();
+      if (!remote || typeof remote !== "object") return { ok: true, state: null };
+
+      writeMaster(remote);
+      return { ok: true, state: remote };
+    } catch (e) {
+      console.warn("[Portal] Remote pull failed:", e);
+      return { ok: false, reason: "pull_failed", error: String(e) };
+    }
+  }
+
+  function load(key) {
+    const master = readMaster();
+    return master[key] ?? {};
+  }
+
+  function save(key, val) {
+    const master = readMaster();
+    master[key] = val;
+    writeMaster(master);
+
+    // Auto-push on every change
+    schedulePush(master);
+  }
+
+  function exportAll() {
+    const master = readMaster();
+    return JSON.stringify(master, null, 2);
+  }
+
+  function importAll(jsonText) {
+    const obj = safeParse(jsonText);
+    if (!obj || typeof obj !== "object") throw new Error("Backup file is not valid JSON.");
+    writeMaster(obj);
+    schedulePush(obj);
+  }
+
+  // app.js calls this
+  async function init() {
+    const pulled = await pullNow();
+
+    // If remote is empty but local has state, push local up for first-time setup
+    if (pulled?.ok && !pulled?.state) {
+      const local = readMaster();
+      if (Object.keys(local).length) await pushNow(local);
+    }
+
+    return pulled;
+  }
+
+  async function forcePush() {
+    const master = readMaster();
+    return pushNow(master);
+  }
+
+  async function forcePull() {
+    return pullNow();
+  }
+
+  return { load, save, exportAll, importAll, init, forcePush, forcePull };
 })();
