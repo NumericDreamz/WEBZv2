@@ -17,34 +17,26 @@
     return Math.max(min, Math.min(max, n));
   }
 
-  function loadState() {
-    try {
-      const raw = window.PortalApp?.Storage?.load(STORAGE_KEY);
-      if (raw && typeof raw === "object") return raw;
-    } catch (_) {}
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch (_) {
-      return {};
-    }
+  function getFallbackStore() {
+    return {
+      load: function (key) {
+        try { return JSON.parse(localStorage.getItem(key) || "{}"); }
+        catch { return {}; }
+      },
+      save: function (key, val) {
+        localStorage.setItem(key, JSON.stringify(val || {}));
+      }
+    };
   }
 
-  function saveState(state) {
-    try {
-      if (window.PortalApp?.Storage?.save) {
-        window.PortalApp.Storage.save(STORAGE_KEY, state);
-        return;
-      }
-    } catch (_) {}
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  function getStore() {
+    return window.PortalApp?.Storage || getFallbackStore();
   }
 
   function pruneOldMonths(state, keep = 12) {
-    const keys = Object.keys(state).sort();
-    while (keys.length > keep) {
-      delete state[keys.shift()];
-    }
+    if (!state || typeof state !== "object") return;
+    const keys = Object.keys(state).sort(); // YYYY-MM sorts correctly
+    while (keys.length > keep) delete state[keys.shift()];
   }
 
   function ensureMonth(state, key) {
@@ -91,13 +83,12 @@
     `);
 
     for (const m of metrics) {
-      const id = m.id;
+      const id = m && m.id;
       if (!id) continue;
 
       if (m.type === "recognition") {
         const allot = Number(m.allotment || 0) || 0;
         const used = clamp(getVal(state, key, id), 0, allot || 999999);
-
         const pctUsed = allot ? Math.round((used / allot) * 100) : 0;
 
         const dim = daysInMonth(now);
@@ -173,28 +164,36 @@
       const host = document.getElementById(slotId);
       if (!host) return;
 
-      const now = new Date();
-      const key = monthKey(now);
+      const store = getStore();
+      const config = cfg || {};
+      const metricsList = Array.isArray(config.metrics) ? config.metrics : [];
 
-      const state = loadState();
+      let state = store.load(STORAGE_KEY);
+      if (!state || typeof state !== "object") state = {};
+
       pruneOldMonths(state);
-      ensureMonth(state, key);
+      ensureMonth(state, monthKey(new Date()));
+      store.save(STORAGE_KEY, state);
 
-      render(host, cfg || {}, state, now);
+      render(host, config, state, new Date());
 
       // One event handler for the whole card
       host.addEventListener("click", (e) => {
         const btn = e.target.closest("button");
         if (!btn) return;
 
-        const reset = btn.dataset.mmAction === "reset";
-        if (reset) {
-          const metrics = Array.isArray(cfg.metrics) ? cfg.metrics : [];
-          for (const m of metrics) {
-            if (m?.id) setVal(state, key, m.id, 0);
+        const now = new Date();
+        const key = monthKey(now);
+
+        // Reset button
+        if (btn.dataset.mmAction === "reset") {
+          ensureMonth(state, key);
+          for (const m of metricsList) {
+            if (m && m.id) setVal(state, key, m.id, 0);
           }
-          saveState(state);
-          render(host, cfg || {}, state, new Date());
+          pruneOldMonths(state);
+          store.save(STORAGE_KEY, state);
+          render(host, config, state, new Date());
           return;
         }
 
@@ -206,29 +205,30 @@
 
         // Recognition edit
         if (btn.dataset.action === "recog-edit") {
-  	const allot = Number(row.dataset.allotment || 0) || 0;
-  	const current = getVal(state, key, metricId);
+          const allot = Number(row.dataset.allotment || 0) || 0;
+          const current = getVal(state, key, metricId);
 
-  	const raw = prompt(`Add Recognition points (remaining ${Math.max(0, allot - current)}):`, "10");
- 	 if (raw === null) return;
+          const raw = prompt(`Add Recognition points (remaining ${Math.max(0, allot - current)}):`, "10");
+          if (raw === null) return;
 
-	  const add = Number(String(raw).trim());
-  	if (!Number.isFinite(add)) return;
+          const add = Number(String(raw).trim());
+          if (!Number.isFinite(add)) return;
 
-  	const next = clamp(current + Math.round(add), 0, allot);
-  	setVal(state, key, metricId, next);
+          const next = clamp(current + Math.round(add), 0, allot);
+          setVal(state, key, metricId, next);
 
-  	saveState(state);
-  	render(host, cfg || {}, state, new Date());
-  	return;
-	}
-
+          pruneOldMonths(state);
+          store.save(STORAGE_KEY, state);
+          render(host, config, state, new Date());
+          return;
+        }
 
         // Standard counter inc/dec
         const action = btn.dataset.action;
         if (!action) return;
 
-        const target = Number(row.dataset.target || 0);
+        ensureMonth(state, key);
+
         const current = getVal(state, key, metricId);
         let next = current;
 
@@ -236,8 +236,10 @@
         if (action === "dec") next = Math.max(0, current - 1);
 
         setVal(state, key, metricId, next);
-        saveState(state);
-        render(host, cfg || {}, state, new Date());
+
+        pruneOldMonths(state);
+        store.save(STORAGE_KEY, state);
+        render(host, config, state, new Date());
       });
     }
   };
