@@ -1,0 +1,1 @@
+This is just a personal dashboard I created to assist me through my workweek as a maintenance supervisor.  A bit of a work in progress, so don't judge.  I constantly add and change stuff so, it may be a bit messy in certain places.
