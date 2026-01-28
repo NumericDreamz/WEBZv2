@@ -14,6 +14,7 @@
   }
 
   function pruneYears(state, keep = 6) {
+    if (!state || typeof state !== "object") return;
     const keys = Object.keys(state).sort();
     while (keys.length > keep) delete state[keys.shift()];
   }
@@ -41,34 +42,66 @@
     return normalizeName(name).toLowerCase();
   }
 
-  function escapeAttr(s) {
-    return String(s).replace(/"/g, "&quot;");
+  function escHtml(s) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function encodePerson(name) {
+    return encodeURIComponent(String(name));
+  }
+
+  function decodePerson(val) {
+    try { return decodeURIComponent(String(val || "")); }
+    catch { return String(val || ""); }
   }
 
   function allDone(taskObj) {
-    const names = Object.keys(taskObj.people);
+    const names = Object.keys(taskObj.people || {});
     if (names.length === 0) return false;
     return names.every(n => !!taskObj.people[n]);
   }
 
+  function getFallbackStore() {
+    return {
+      load: function (key) {
+        try { return JSON.parse(localStorage.getItem(key) || "null"); }
+        catch { return null; }
+      },
+      save: function (key, val) {
+        localStorage.setItem(key, JSON.stringify(val || {}));
+      }
+    };
+  }
+
+  function getStore() {
+    return window.PortalApp?.Storage || getFallbackStore();
+  }
+
   function buildTaskCard(taskDef, taskObj) {
     const locked = !!taskObj.locked;
-    const names = Object.keys(taskObj.people);
+    const names = Object.keys(taskObj.people || {});
 
     const items = names
       .sort((a, b) => a.localeCompare(b))
       .map((name) => {
         const done = !!taskObj.people[name];
         const cls = done ? "tech-btn tech-done" : "tech-btn tech-pending";
-        const safe = escapeAttr(name);
+
+        const labelText = escHtml(name);
+        const personAttr = encodePerson(name);
 
         const delBtn = locked
           ? ""
-          : `<button type="button" class="tech-del" data-action="del-person" data-task="${taskDef.id}" data-person="${safe}" aria-label="Delete ${safe}">−</button>`;
+          : `<button type="button" class="tech-del" data-action="del-person" data-task="${escHtml(taskDef.id)}" data-person="${personAttr}" aria-label="Delete ${labelText}">−</button>`;
 
         return `
           <div class="tech-item">
-            <button type="button" class="${cls}" data-action="toggle-person" data-task="${taskDef.id}" data-person="${safe}">${safe}</button>
+            <button type="button" class="${cls}" data-action="toggle-person" data-task="${escHtml(taskDef.id)}" data-person="${personAttr}">${labelText}</button>
             ${delBtn}
           </div>
         `;
@@ -79,17 +112,17 @@
     const controlsStyle = locked ? "display:none" : "";
 
     return `
-      <section class="metrics-card" data-widget="yearly-task" data-task="${taskDef.id}">
+      <section class="metrics-card" data-widget="yearly-task" data-task="${escHtml(taskDef.id)}">
         <div class="yearly-task">
-          <div class="yearly-title">${taskDef.label}</div>
+          <div class="yearly-title">${escHtml(taskDef.label)}</div>
           <div class="yearly-sub">
-            Add ${taskDef.itemName}s with <b>+</b>, hit <b>SET</b> to lock, then click names as they complete.
+            Add ${escHtml(taskDef.itemName)}s with <b>+</b>, hit <b>SET</b> to lock, then click names as they complete.
           </div>
         </div>
 
         <div class="yearly-controls" style="${controlsStyle}">
-          <button class="btn" type="button" data-action="add-person" data-task="${taskDef.id}" aria-label="Add ${taskDef.itemName}">+</button>
-          <button class="btn subtle" type="button" data-action="lock-roster" data-task="${taskDef.id}">SET</button>
+          <button class="btn" type="button" data-action="add-person" data-task="${escHtml(taskDef.id)}" aria-label="Add ${escHtml(taskDef.itemName)}">+</button>
+          <button class="btn subtle" type="button" data-action="lock-roster" data-task="${escHtml(taskDef.id)}">SET</button>
         </div>
 
         <div class="tech-grid">
@@ -97,7 +130,7 @@
         </div>
 
         <div class="muted-box" style="${emptyHintStyle}">
-          No ${taskDef.itemName}s yet. Add them, then hit <b>SET</b> to lock the list.
+          No ${escHtml(taskDef.itemName)}s yet. Add them, then hit <b>SET</b> to lock the list.
         </div>
       </section>
     `;
@@ -112,8 +145,8 @@
     return `
       <section class="metrics-card" data-widget="yearly">
         <div class="widget-head">
-          <h2>${cfg.title}</h2>
-          <div class="daily-progress">${y}</div>
+          <h2>${escHtml(cfg.title)}</h2>
+          <div class="daily-progress">${escHtml(y)}</div>
         </div>
 
         <div class="yearly-stack">
@@ -127,8 +160,11 @@
     const slot = document.getElementById(slotId);
     if (!slot) return;
 
-    const store = window.PortalApp?.Storage;
-    if (!store) return;
+    // prevent double-init (reloading modules, accidental init twice, etc.)
+    if (slot.dataset.yearlyInited === "1") return;
+    slot.dataset.yearlyInited = "1";
+
+    const store = getStore();
 
     const cfg = {
       ...defaultConfig,
@@ -139,28 +175,24 @@
     const now = new Date();
     const y = yearKey(now);
 
-    const state = store.load(STORAGE_KEY) || {};
+    let state = store.load(STORAGE_KEY);
+    if (!state || typeof state !== "object") state = {};
+
     pruneYears(state, 6);
     ensureYear(state, y, cfg.tasks);
 
-    // Auto-complete tasks that are locked + all done
-    cfg.tasks.forEach(t => {
-      const obj = state[y].tasks[t.id];
-      if (!obj.completed && obj.locked && allDone(obj)) obj.completed = true;
-    });
-
-    store.save(STORAGE_KEY, state);
-
-    function rerender() {
-      // Recheck auto-complete every render
+    function autoComplete() {
       cfg.tasks.forEach(t => {
         const obj = state[y].tasks[t.id];
         if (!obj.completed && obj.locked && allDone(obj)) obj.completed = true;
       });
+    }
 
+    function rerender() {
+      autoComplete();
+      pruneYears(state, 6);
       store.save(STORAGE_KEY, state);
 
-      // If everything complete, hide entire yearly module
       const allComplete = cfg.tasks.every(t => !!state[y].tasks[t.id].completed);
       if (allComplete) {
         slot.innerHTML = "";
@@ -183,7 +215,7 @@
       const action = btn.dataset.action;
       const taskId = btn.dataset.task;
 
-      if (!taskId || !state[y].tasks[taskId]) return;
+      if (!taskId || !state[y]?.tasks?.[taskId]) return;
       const taskObj = state[y].tasks[taskId];
       const taskDef = cfg.tasks.find(t => t.id === taskId);
       if (!taskDef) return;
@@ -203,8 +235,6 @@
         }
 
         taskObj.people[name] = false;
-        pruneYears(state, 6);
-        store.save(STORAGE_KEY, state);
         rerender();
         return;
       }
@@ -213,13 +243,15 @@
       if (action === "del-person") {
         if (taskObj.locked) return;
 
-        const person = btn.dataset.person;
+        const personEncoded = btn.dataset.person;
+        const person = normalizeName(decodePerson(personEncoded));
         if (!person) return;
 
-        if (person in taskObj.people) {
-          delete taskObj.people[person];
-          pruneYears(state, 6);
-          store.save(STORAGE_KEY, state);
+        // Find actual key match (case/spacing safe)
+        const keys = Object.keys(taskObj.people);
+        const hit = keys.find(k => nameKey(k) === nameKey(person));
+        if (hit) {
+          delete taskObj.people[hit];
           rerender();
         }
         return;
@@ -236,22 +268,21 @@
         }
 
         taskObj.locked = true;
-        pruneYears(state, 6);
-        store.save(STORAGE_KEY, state);
         rerender();
         return;
       }
 
       // Toggle person completion
       if (action === "toggle-person") {
-        const person = btn.dataset.person;
+        const personEncoded = btn.dataset.person;
+        const person = normalizeName(decodePerson(personEncoded));
         if (!person) return;
-        if (!(person in taskObj.people)) return;
 
-        taskObj.people[person] = !taskObj.people[person];
+        const keys = Object.keys(taskObj.people);
+        const hit = keys.find(k => nameKey(k) === nameKey(person));
+        if (!hit) return;
 
-        pruneYears(state, 6);
-        store.save(STORAGE_KEY, state);
+        taskObj.people[hit] = !taskObj.people[hit];
         rerender();
         return;
       }
