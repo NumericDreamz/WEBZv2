@@ -18,7 +18,6 @@
   }
 
   function prettyDay(d) {
-    // Example: Tuesday, January 23, 2026
     return d.toLocaleDateString(undefined, {
       weekday: "long",
       year: "numeric",
@@ -28,6 +27,7 @@
   }
 
   function pruneOldDays(state, keep = 45) {
+    if (!state || typeof state !== "object") return;
     const keys = Object.keys(state).sort(); // YYYY-MM-DD sorts correctly
     while (keys.length > keep) delete state[keys.shift()];
   }
@@ -75,21 +75,33 @@
   }
 
   function render(card, state, todayKey, cfg) {
-    const todays = state[todayKey] || {};
+    const todays = (state && state[todayKey]) ? state[todayKey] : {};
     let done = 0;
 
     cfg.toggles.forEach(t => {
       const checked = !!todays[t.id];
       const row = card.querySelector(`.toggle-row[data-toggle-id="${t.id}"]`);
       const input = card.querySelector(`input[data-toggle-id="${t.id}"]`);
-      if (input) input.checked = checked;
 
+      if (input) input.checked = checked;
       if (row) row.classList.toggle("toggle-done", checked);
       if (checked) done += 1;
     });
 
     const progress = card.querySelector('[data-role="progress"]');
     if (progress) progress.textContent = `${done}/${cfg.toggles.length}`;
+  }
+
+  function getFallbackStore() {
+    return {
+      load: function (key) {
+        try { return JSON.parse(localStorage.getItem(key) || "{}"); }
+        catch { return {}; }
+      },
+      save: function (key, val) {
+        localStorage.setItem(key, JSON.stringify(val || {}));
+      }
+    };
   }
 
   function init(slotId, config = {}) {
@@ -103,21 +115,23 @@
     };
 
     const now = new Date();
-    const todayKey = dayKey(now);
+    const todayKeyStr = dayKey(now);
     const todayPretty = prettyDay(now);
 
     slot.innerHTML = buildHTML(cfg, todayPretty);
-
     const card = slot.querySelector('[data-widget="daily"]');
-    const store = window.PortalApp?.Storage;
-    if (!store) return;
+    if (!card) return;
 
-    const state = store.load(STORAGE_KEY);
+    const store = window.PortalApp?.Storage || getFallbackStore();
+
+    let state = store.load(STORAGE_KEY);
+    if (!state || typeof state !== "object") state = {};
+
     pruneOldDays(state);
-    ensureToday(state, todayKey, cfg.toggles);
+    ensureToday(state, todayKeyStr, cfg.toggles);
     store.save(STORAGE_KEY, state);
 
-    render(card, state, todayKey, cfg);
+    render(card, state, todayKeyStr, cfg);
 
     card.addEventListener("change", (e) => {
       const input = e.target.closest('input[data-action="toggle"]');
@@ -126,23 +140,24 @@
       const id = input.dataset.toggleId;
       if (!id) return;
 
-      ensureToday(state, todayKey, cfg.toggles);
-      state[todayKey][id] = !!input.checked;
+      ensureToday(state, todayKeyStr, cfg.toggles);
+      state[todayKeyStr][id] = !!input.checked;
 
       pruneOldDays(state);
       store.save(STORAGE_KEY, state);
-      render(card, state, todayKey, cfg);
+      render(card, state, todayKeyStr, cfg);
     });
 
     card.addEventListener("click", (e) => {
       const btn = e.target.closest('button[data-action="reset-today"]');
       if (!btn) return;
 
-      ensureToday(state, todayKey, cfg.toggles);
-      cfg.toggles.forEach(t => state[todayKey][t.id] = false);
+      ensureToday(state, todayKeyStr, cfg.toggles);
+      cfg.toggles.forEach(t => state[todayKeyStr][t.id] = false);
 
+      pruneOldDays(state);
       store.save(STORAGE_KEY, state);
-      render(card, state, todayKey, cfg);
+      render(card, state, todayKeyStr, cfg);
     });
   }
 
