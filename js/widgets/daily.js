@@ -1,8 +1,33 @@
+/* ========================================================= */
+/* ====================== daily.js (Widget) ================= */
+/* ========================================================= */
+/*
+  Purpose:
+    Daily toggles with “Complete” collapse behavior.
+
+  Changes:
+    - Title shortened: "Daily"
+    - Removed top-right x/3 counter (obsolete)
+    - Removed bottom-right Reset button (obsolete)
+    - Moved date display to under the title
+    - Removed redundant "Daily" sublabel on each row
+    - When a toggle is checked, switch is replaced with "Complete" pill
+    - Completed labels shorten to: Hazards / Review / Workday
+
+  Storage:
+    STORAGE_KEY: portal_metrics_daily_v1
+*/
+
+/* ========================================================= */
+/* ================= Config / Globals ====================== */
+/* ========================================================= */
 (function () {
+  "use strict";
+
   const STORAGE_KEY = "portal_metrics_daily_v1";
 
   const defaultConfig = {
-    title: "Daily Metrics",
+    title: "Daily",
     toggles: [
       { id: "check_hazards", label: "Check for new Hazards" },
       { id: "review_work_orders", label: "Review Work Orders" },
@@ -10,6 +35,9 @@
     ]
   };
 
+  /* ========================================================= */
+  /* ======================= Utilities ======================= */
+  /* ========================================================= */
   function dayKey(d) {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -32,66 +60,32 @@
     while (keys.length > keep) delete state[keys.shift()];
   }
 
-  function ensureToday(state, todayKey, toggles) {
-    if (!state[todayKey]) state[todayKey] = {};
+  function ensureToday(state, todayKeyStr, toggles) {
+    if (!state[todayKeyStr]) state[todayKeyStr] = {};
     toggles.forEach(t => {
-      if (typeof state[todayKey][t.id] !== "boolean") state[todayKey][t.id] = false;
+      if (typeof state[todayKeyStr][t.id] !== "boolean") state[todayKeyStr][t.id] = false;
     });
   }
 
-  function buildHTML(cfg, todayPretty) {
-    const rows = cfg.toggles.map(t => `
-      <div class="toggle-row" data-toggle-id="${t.id}">
-        <div class="toggle-left">
-          <div class="toggle-title">${t.label}</div>
-          <div class="toggle-sub">Daily</div>
-        </div>
-
-        <div class="toggle-right">
-          <label class="switch" aria-label="${t.label}">
-            <input type="checkbox" data-action="toggle" data-toggle-id="${t.id}">
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-    `).join("");
-
-    return `
-      <section class="metrics-card" data-widget="daily">
-        <div class="widget-head">
-          <h2>${cfg.title}</h2>
-          <div class="daily-progress" data-role="progress">0/${cfg.toggles.length}</div>
-        </div>
-
-        ${rows}
-
-        <div class="metric-footer">
-          <div class="month-label" data-role="day-label">Today: ${todayPretty}</div>
-          <div></div>
-          <button class="btn subtle" type="button" data-action="reset-today">Reset</button>
-        </div>
-      </section>
-    `;
+  function esc(s) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
   }
 
-  function render(card, state, todayKey, cfg) {
-    const todays = (state && state[todayKey]) ? state[todayKey] : {};
-    let done = 0;
-
-    cfg.toggles.forEach(t => {
-      const checked = !!todays[t.id];
-      const row = card.querySelector(`.toggle-row[data-toggle-id="${t.id}"]`);
-      const input = card.querySelector(`input[data-toggle-id="${t.id}"]`);
-
-      if (input) input.checked = checked;
-      if (row) row.classList.toggle("toggle-done", checked);
-      if (checked) done += 1;
-    });
-
-    const progress = card.querySelector('[data-role="progress"]');
-    if (progress) progress.textContent = `${done}/${cfg.toggles.length}`;
+  function shortLabelForToggle(id, fullLabel) {
+    if (id === "check_hazards") return "Hazards";
+    if (id === "review_work_orders") return "Review";
+    if (id === "check_workday") return "Workday";
+    return fullLabel || id;
   }
 
+  /* ========================================================= */
+  /* =================== Storage Wrapper ===================== */
+  /* ========================================================= */
   function getFallbackStore() {
     return {
       load: function (key) {
@@ -104,6 +98,78 @@
     };
   }
 
+  function getStore() {
+    return window.PortalApp?.Storage || getFallbackStore();
+  }
+
+  /* ========================================================= */
+  /* =================== Render / Template =================== */
+  /* ========================================================= */
+  function buildHTML(cfg, todayPretty, todaysState) {
+    const rows = cfg.toggles.map(t => {
+      const checked = !!todaysState?.[t.id];
+      const labelText = checked ? shortLabelForToggle(t.id, t.label) : t.label;
+
+      // If complete: replace switch with pill
+      const rightSide = checked
+        ? `
+          <div class="status-pill status-good" aria-live="polite">
+            <span class="status-dot"></span>
+            <span class="status-text">Complete</span>
+          </div>
+        `
+        : `
+          <label class="switch" aria-label="${esc(t.label)}">
+            <input type="checkbox" data-action="toggle" data-toggle-id="${esc(t.id)}">
+            <span class="slider"></span>
+          </label>
+        `;
+
+      return `
+        <div class="toggle-row ${checked ? "toggle-done toggle-complete" : ""}" data-toggle-id="${esc(t.id)}">
+          <div class="toggle-left">
+            <div class="toggle-title">${esc(labelText)}</div>
+          </div>
+
+          <div class="toggle-right">
+            ${rightSide}
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <section class="metrics-card" data-widget="daily">
+        <div class="widget-head">
+          <h2>${esc(cfg.title || "Daily")}</h2>
+        </div>
+
+        <!-- date directly under title -->
+        <div class="daily-progress" data-role="day-label">${esc(todayPretty)}</div>
+
+        ${rows}
+      </section>
+    `;
+  }
+
+  function render(slot, cfg, state, todayKeyStr, todayPretty) {
+    const todays = (state && state[todayKeyStr]) ? state[todayKeyStr] : {};
+    slot.innerHTML = buildHTML(cfg, todayPretty, todays);
+
+    // Sync checkbox states for any rows still showing switches
+    const card = slot.querySelector('[data-widget="daily"]');
+    if (!card) return;
+
+    cfg.toggles.forEach(t => {
+      const checked = !!todays[t.id];
+      const input = card.querySelector(`input[data-toggle-id="${CSS.escape(t.id)}"]`);
+      if (input) input.checked = checked;
+    });
+  }
+
+  /* ========================================================= */
+  /* =========================== Init ======================== */
+  /* ========================================================= */
   function init(slotId, config = {}) {
     const slot = document.getElementById(slotId);
     if (!slot) return;
@@ -111,6 +177,7 @@
     const cfg = {
       ...defaultConfig,
       ...config,
+      title: "Daily",
       toggles: (config.toggles || defaultConfig.toggles).slice()
     };
 
@@ -118,11 +185,7 @@
     const todayKeyStr = dayKey(now);
     const todayPretty = prettyDay(now);
 
-    slot.innerHTML = buildHTML(cfg, todayPretty);
-    const card = slot.querySelector('[data-widget="daily"]');
-    if (!card) return;
-
-    const store = window.PortalApp?.Storage || getFallbackStore();
+    const store = getStore();
 
     let state = store.load(STORAGE_KEY);
     if (!state || typeof state !== "object") state = {};
@@ -131,9 +194,10 @@
     ensureToday(state, todayKeyStr, cfg.toggles);
     store.save(STORAGE_KEY, state);
 
-    render(card, state, todayKeyStr, cfg);
+    render(slot, cfg, state, todayKeyStr, todayPretty);
 
-    card.addEventListener("change", (e) => {
+    // Delegate change handling (only fires for rows that still have switches)
+    slot.addEventListener("change", (e) => {
       const input = e.target.closest('input[data-action="toggle"]');
       if (!input) return;
 
@@ -145,19 +209,9 @@
 
       pruneOldDays(state);
       store.save(STORAGE_KEY, state);
-      render(card, state, todayKeyStr, cfg);
-    });
 
-    card.addEventListener("click", (e) => {
-      const btn = e.target.closest('button[data-action="reset-today"]');
-      if (!btn) return;
-
-      ensureToday(state, todayKeyStr, cfg.toggles);
-      cfg.toggles.forEach(t => state[todayKeyStr][t.id] = false);
-
-      pruneOldDays(state);
-      store.save(STORAGE_KEY, state);
-      render(card, state, todayKeyStr, cfg);
+      // Rerender to swap switch -> Complete pill when checked
+      render(slot, cfg, state, todayKeyStr, todayPretty);
     });
   }
 
