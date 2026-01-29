@@ -1,8 +1,36 @@
+/* ========================================================= */
+/* ===================== monthly.js (Widget) ================= */
+/* ========================================================= */
+/*
+  Purpose:
+    Monthly counters + Recognition tracker
+
+  Title:
+    "Monthly - <MonthName>"  (drops "Metrics")
+
+  Top progress bar:
+    % through the current month (under the title)
+
+  Storage:
+    STORAGE_KEY: portal_monthly_metrics_v2
+
+  External deps:
+    window.PortalApp.Storage (load/save) if available
+*/
+
+/* ========================================================= */
+/* ================= Config / Globals ====================== */
+/* ========================================================= */
 (function () {
+  "use strict";
+
   window.PortalWidgets = window.PortalWidgets || {};
 
   const STORAGE_KEY = "portal_monthly_metrics_v2";
 
+  /* ========================================================= */
+  /* ======================= Utilities ======================= */
+  /* ========================================================= */
   function monthKey(d) {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -17,6 +45,23 @@
     return Math.max(min, Math.min(max, n));
   }
 
+  function esc(s) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function monthTitle(now) {
+    const monthName = now.toLocaleString(undefined, { month: "long" });
+    return `Monthly - ${monthName}`;
+  }
+
+  /* ========================================================= */
+  /* =================== Storage Wrapper ===================== */
+  /* ========================================================= */
   function getFallbackStore() {
     return {
       load: function (key) {
@@ -55,30 +100,35 @@
     m[id] = val;
   }
 
-  function esc(s) {
-    return String(s)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
-  function monthTitle(now) {
-    const monthName = now.toLocaleString(undefined, { month: "long" });
-    return `Monthly Metrics - ${monthName}`;
-  }
-
+  /* ========================================================= */
+  /* =================== Render / Template =================== */
+  /* ========================================================= */
   function render(host, cfg, state, now) {
     const key = monthKey(now);
     const metrics = Array.isArray(cfg.metrics) ? cfg.metrics : [];
 
+    // Top-of-widget month progress bar
+    const dim = daysInMonth(now);
+    const day = now.getDate();
+    const monthPct = clamp(Math.round((day / dim) * 100), 0, 100);
+    const monthShort = now.toLocaleString(undefined, { month: "short" });
+
     const htmlParts = [];
+
     htmlParts.push(`
       <section class="metrics-card" id="monthly-metrics">
         <div class="widget-head">
           <h2>${esc(monthTitle(now))}</h2>
           <button class="btn subtle" type="button" data-mm-action="reset">Reset</button>
+        </div>
+
+        <!-- progress bar directly under title -->
+        <div class="bar-row" style="margin-top:0;">
+          <div class="bar-label">${esc(monthShort)}</div>
+          <div class="bar-track month">
+            <div class="bar-fill month" style="width:${monthPct}%;"></div>
+          </div>
+          <div class="bar-pct">${monthPct}%</div>
         </div>
     `);
 
@@ -86,15 +136,11 @@
       const id = m && m.id;
       if (!id) continue;
 
+      /* ================= Recognition (special) ================= */
       if (m.type === "recognition") {
         const allot = Number(m.allotment || 0) || 0;
         const used = clamp(getVal(state, key, id), 0, allot || 999999);
         const pctUsed = allot ? Math.round((used / allot) * 100) : 0;
-
-        const dim = daysInMonth(now);
-        const day = now.getDate();
-        const monthPct = Math.round((day / dim) * 100);
-        const monthShort = now.toLocaleString(undefined, { month: "short" });
 
         htmlParts.push(`
           <div class="metric-row recognition" data-metric-id="${esc(id)}" data-allotment="${esc(allot)}">
@@ -127,7 +173,7 @@
         continue;
       }
 
-      // default counter metric (LOTO, Care, etc.)
+      /* ================= Standard counter metric ================= */
       const target = Number(m.target || 0);
       const val = getVal(state, key, id);
       const good = target ? val >= target : false;
@@ -159,6 +205,9 @@
     host.innerHTML = htmlParts.join("");
   }
 
+  /* ========================================================= */
+  /* =========================== Init ======================== */
+  /* ========================================================= */
   window.PortalWidgets.Monthly = {
     init: function (slotId, cfg) {
       const host = document.getElementById(slotId);
