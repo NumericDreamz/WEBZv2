@@ -809,6 +809,51 @@ body{
 }
 
 /* ========================================================= */
+/* ===================== Recent Tasks ====================== */
+/* ========================================================= */
+
+/* Header right side: pill + add button */
+.rt-head-right{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Recent list spacing matches other widgets */
+.recent-list{
+  margin-top: 12px;
+  display: grid;
+  gap: 10px; /* <- tweak this if you want tighter/looser */
+}
+
+/* We're using toggle-row, so kill its built-in margin-bottom inside this list */
+.recent-list .toggle-row{
+  margin-bottom: 0;
+}
+
+/* Right side alignment */
+.rt-right{
+  display: flex;
+  align-items: center;
+}
+
+/* Overdue (after midnight) = angry flashing */
+.rt-row.rt-overdue{
+  border-color: #ff3b3b;
+  box-shadow: 0 0 0 2px rgba(255, 59, 59, .28) inset, 0 0 18px rgba(255, 0, 0, .18);
+  animation: weeklyRage 0.65s infinite;
+}
+
+.rt-row.rt-overdue .slider{
+  background: #5a0000;
+  border-color: #ff3b3b;
+}
+
+.rt-row.rt-overdue .slider:before{
+  background: #ffd1d1;
+}
+
+/* ========================================================= */
 /* ================= Monthly: Recognition ================== */
 /* ========================================================= */
 
@@ -926,6 +971,7 @@ body{
 .metrics-card .toggle-row + .metric-row{
   margin-top: var(--rowGap, 12px);
 }
+
 
 
 
