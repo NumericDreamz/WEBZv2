@@ -3,7 +3,7 @@
 /* ========================================================= */
 /*
   Purpose:
-    Yearly task widgets with per-person roster:
+    Yearly widgets with per-person roster:
       - Annual LOTO Inspections (Technicians)
       - Plan For Zero (Employees)
 
@@ -24,7 +24,7 @@
   const STORAGE_KEY = "portal_metrics_yearly_v2";
 
   const defaultConfig = {
-    title: "Yearly Metrics",
+    title: "Yearly", // was "Yearly Metrics"
     tasks: [
       { id: "annual_loto", label: "Annual LOTO Inspections", itemName: "Technician" },
       { id: "plan_for_zero", label: "Plan For Zero", itemName: "Employee" }
@@ -36,6 +36,24 @@
   /* ========================================================= */
   function yearKey(d) {
     return String(d.getFullYear());
+  }
+
+  function daysInYear(d) {
+    const y = d.getFullYear();
+    const start = Date.UTC(y, 0, 1);
+    const end = Date.UTC(y + 1, 0, 1);
+    return Math.round((end - start) / 86400000);
+  }
+
+  function dayOfYear(d) {
+    const y = d.getFullYear();
+    const start = Date.UTC(y, 0, 1);
+    const today = Date.UTC(y, d.getMonth(), d.getDate());
+    return Math.floor((today - start) / 86400000) + 1; // 1..365/366
+  }
+
+  function clamp(n, min, max) {
+    return Math.max(min, Math.min(max, n));
   }
 
   function pruneYears(state, keep = 6) {
@@ -142,9 +160,9 @@
     const emptyHintStyle = names.length ? "display:none" : "";
     const controlsStyle = locked ? "display:none" : "";
 
-    /* ------------------ FIX: Hide instructions after SET ------------------ */
+    // Hide instructions after SET (locked)
     const instructionsHtml = locked
-      ? ""   // locked = shut up and just show the roster
+      ? ""
       : `
         <div class="yearly-sub">
           Add ${escHtml(taskDef.itemName)}s with <b>+</b>, hit <b>SET</b> to lock, then click names as they complete.
@@ -174,7 +192,12 @@
     `;
   }
 
-  function buildHTML(cfg, y, stateYear) {
+  function buildHTML(cfg, y, stateYear, now) {
+    // Year progress bar (uses your existing bar-row / bar-track.month styles)
+    const dim = daysInYear(now);
+    const doy = dayOfYear(now);
+    const pct = clamp(Math.round((doy / dim) * 100), 0, 100);
+
     const taskCards = cfg.tasks
       .filter(t => !stateYear.tasks[t.id].completed)
       .map(t => buildTaskCard(t, stateYear.tasks[t.id]))
@@ -185,6 +208,15 @@
         <div class="widget-head">
           <h2>${escHtml(cfg.title)}</h2>
           <div class="daily-progress">${escHtml(y)}</div>
+        </div>
+
+        <!-- progress bar directly under title -->
+        <div class="bar-row" style="margin-top:0;">
+          <div class="bar-label">${escHtml(y)}</div>
+          <div class="bar-track month">
+            <div class="bar-fill month" style="width:${pct}%;"></div>
+          </div>
+          <div class="bar-pct">${pct}%</div>
         </div>
 
         <div class="yearly-stack">
@@ -239,7 +271,7 @@
         return;
       }
 
-      slot.innerHTML = buildHTML(cfg, y, state[y]);
+      slot.innerHTML = buildHTML(cfg, y, state[y], new Date());
     }
 
     rerender();
