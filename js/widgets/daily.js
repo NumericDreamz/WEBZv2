@@ -31,7 +31,8 @@
     toggles: [
       { id: "check_hazards", label: "Check for new Hazards" },
       { id: "review_work_orders", label: "Review Work Orders" },
-      { id: "check_workday", label: "Check Workday" }
+      { id: "check_workday", label: "Check Workday" },
+      { id: "update_backlog", label: "Update Backlog" }
     ]
   };
 
@@ -80,6 +81,7 @@
     if (id === "check_hazards") return "Hazards";
     if (id === "review_work_orders") return "Review";
     if (id === "check_workday") return "Workday";
+    if (id === "update_backlog") return "Backlog";
     return fullLabel || id;
   }
 
@@ -218,3 +220,4 @@
   window.PortalWidgets = window.PortalWidgets || {};
   window.PortalWidgets.Daily = { init };
 })();
+
