@@ -1,4 +1,26 @@
+/* ========================================================= */
+/* ===================== yearly.js (Widget) ================= */
+/* ========================================================= */
+/*
+  Purpose:
+    Yearly task widgets with per-person roster:
+      - Annual LOTO Inspections (Technicians)
+      - Plan For Zero (Employees)
+
+  Storage:
+    STORAGE_KEY: portal_metrics_yearly_v2
+    Scope: Per-year (YYYY)
+
+  External deps:
+    window.PortalApp.Storage (load/save) if available
+*/
+
+/* ========================================================= */
+/* ================= Config / Globals ====================== */
+/* ========================================================= */
 (function () {
+  "use strict";
+
   const STORAGE_KEY = "portal_metrics_yearly_v2";
 
   const defaultConfig = {
@@ -9,6 +31,9 @@
     ]
   };
 
+  /* ========================================================= */
+  /* ======================= Utilities ======================= */
+  /* ========================================================= */
   function yearKey(d) {
     return String(d.getFullYear());
   }
@@ -66,6 +91,9 @@
     return names.every(n => !!taskObj.people[n]);
   }
 
+  /* ========================================================= */
+  /* =================== Storage Wrapper ===================== */
+  /* ========================================================= */
   function getFallbackStore() {
     return {
       load: function (key) {
@@ -82,6 +110,9 @@
     return window.PortalApp?.Storage || getFallbackStore();
   }
 
+  /* ========================================================= */
+  /* =================== Render / Template =================== */
+  /* ========================================================= */
   function buildTaskCard(taskDef, taskObj) {
     const locked = !!taskObj.locked;
     const names = Object.keys(taskObj.people || {});
@@ -111,13 +142,20 @@
     const emptyHintStyle = names.length ? "display:none" : "";
     const controlsStyle = locked ? "display:none" : "";
 
+    /* ------------------ FIX: Hide instructions after SET ------------------ */
+    const instructionsHtml = locked
+      ? ""   // locked = shut up and just show the roster
+      : `
+        <div class="yearly-sub">
+          Add ${escHtml(taskDef.itemName)}s with <b>+</b>, hit <b>SET</b> to lock, then click names as they complete.
+        </div>
+      `;
+
     return `
       <section class="metrics-card" data-widget="yearly-task" data-task="${escHtml(taskDef.id)}">
         <div class="yearly-task">
           <div class="yearly-title">${escHtml(taskDef.label)}</div>
-          <div class="yearly-sub">
-            Add ${escHtml(taskDef.itemName)}s with <b>+</b>, hit <b>SET</b> to lock, then click names as they complete.
-          </div>
+          ${instructionsHtml}
         </div>
 
         <div class="yearly-controls" style="${controlsStyle}">
@@ -138,7 +176,7 @@
 
   function buildHTML(cfg, y, stateYear) {
     const taskCards = cfg.tasks
-      .filter(t => !stateYear.tasks[t.id].completed) // hide completed tasks
+      .filter(t => !stateYear.tasks[t.id].completed)
       .map(t => buildTaskCard(t, stateYear.tasks[t.id]))
       .join("");
 
@@ -156,11 +194,13 @@
     `;
   }
 
+  /* ========================================================= */
+  /* =========================== Init ======================== */
+  /* ========================================================= */
   function init(slotId, config = {}) {
     const slot = document.getElementById(slotId);
     if (!slot) return;
 
-    // prevent double-init (reloading modules, accidental init twice, etc.)
     if (slot.dataset.yearlyInited === "1") return;
     slot.dataset.yearlyInited = "1";
 
@@ -204,7 +244,6 @@
 
     rerender();
 
-    // Stable listener on slot survives rerenders
     slot.addEventListener("click", (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
@@ -220,7 +259,6 @@
       const taskDef = cfg.tasks.find(t => t.id === taskId);
       if (!taskDef) return;
 
-      // Add person
       if (action === "add-person") {
         if (taskObj.locked) return;
 
@@ -239,7 +277,6 @@
         return;
       }
 
-      // Delete person (only before lock)
       if (action === "del-person") {
         if (taskObj.locked) return;
 
@@ -247,7 +284,6 @@
         const person = normalizeName(decodePerson(personEncoded));
         if (!person) return;
 
-        // Find actual key match (case/spacing safe)
         const keys = Object.keys(taskObj.people);
         const hit = keys.find(k => nameKey(k) === nameKey(person));
         if (hit) {
@@ -257,7 +293,6 @@
         return;
       }
 
-      // Lock roster
       if (action === "lock-roster") {
         if (taskObj.locked) return;
 
@@ -272,7 +307,6 @@
         return;
       }
 
-      // Toggle person completion
       if (action === "toggle-person") {
         const personEncoded = btn.dataset.person;
         const person = normalizeName(decodePerson(personEncoded));
@@ -289,6 +323,9 @@
     });
   }
 
+  /* ========================================================= */
+  /* ======================= Export API ====================== */
+  /* ========================================================= */
   window.PortalWidgets = window.PortalWidgets || {};
   window.PortalWidgets.Yearly = { init };
 })();
