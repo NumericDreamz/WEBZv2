@@ -11,12 +11,15 @@
   Top progress bar:
     % through the current month (under the title)
 
-  Recognition behavior:
-    - No longer shows a month progress bar inside the Recognition block
-      (because Monthly already has it at the top).
-    - When Recognition hits 100% (used >= allotment), it collapses into a
-      minimal row: "Recognition" + green "On track" pill.
-    - It expands again automatically when the month changes (new monthKey).
+  Behavior updates:
+    - Removed the Monthly reset button (obsolete test control).
+    - Recognition no longer shows a month progress bar inside itself.
+    - Recognition collapses into a minimal "Complete" row when used >= allotment.
+    - LOTO + Care Convo collapse into minimal "Complete" rows when val >= target:
+        * No "Target: x / month"
+        * No +/- controls
+        * Display names shortened to "LOTO" and "Care Convo"
+    - All "On track" pills changed to "Complete"
 
   Storage:
     STORAGE_KEY: portal_monthly_metrics_v2
@@ -64,6 +67,12 @@
   function monthTitle(now) {
     const monthName = now.toLocaleString(undefined, { month: "long" });
     return `Monthly - ${monthName}`;
+  }
+
+  function shortNameForMetricId(id, fallbackLabel) {
+    if (id === "loto_obs") return "LOTO";
+    if (id === "care_convos") return "Care Convo";
+    return fallbackLabel || id;
   }
 
   /* ========================================================= */
@@ -126,7 +135,6 @@
       <section class="metrics-card" id="monthly-metrics">
         <div class="widget-head">
           <h2>${esc(monthTitle(now))}</h2>
-          <button class="btn subtle" type="button" data-mm-action="reset">Reset</button>
         </div>
 
         <!-- progress bar directly under title -->
@@ -166,7 +174,7 @@
 
               <div class="status-pill status-good" aria-live="polite">
                 <span class="status-dot"></span>
-                <span class="status-text">On track</span>
+                <span class="status-text">Complete</span>
               </div>
             </div>
           `);
@@ -203,26 +211,48 @@
       /* ========================================================= */
       const target = Number(m.target || 0);
       const val = getVal(state, key, id);
-      const good = target ? val >= target : false;
+      const done = target ? val >= target : false;
 
+      const shortLabel = esc(shortNameForMetricId(id, m.label));
+
+      // For LOTO + Care Convo: collapse when complete
+      const isCollapseCandidate = (id === "loto_obs" || id === "care_convos");
+
+      if (isCollapseCandidate && done) {
+        htmlParts.push(`
+          <div class="metric-row metric-collapsed" data-metric-id="${esc(id)}" data-target="${esc(target)}">
+            <div class="metric-left">
+              <div class="metric-title">${shortLabel}</div>
+            </div>
+
+            <div class="status-pill status-good" aria-live="polite">
+              <span class="status-dot"></span>
+              <span class="status-text">Complete</span>
+            </div>
+          </div>
+        `);
+        continue;
+      }
+
+      // Default full metric (still editable)
       htmlParts.push(`
         <div class="metric-row" data-metric-id="${esc(id)}" data-target="${esc(target)}">
           <div class="metric-top">
             <div class="metric-left">
-              <div class="metric-title">${esc(m.label || id)}</div>
+              <div class="metric-title">${shortLabel}</div>
               <div class="metric-subtitle">Target: <span class="target-val">${target}</span> / month</div>
             </div>
 
-            <div class="status-pill ${good ? "status-good" : "status-bad"}" aria-live="polite">
+            <div class="status-pill ${done ? "status-good" : "status-bad"}" aria-live="polite">
               <span class="status-dot"></span>
-              <span class="status-text">${good ? "On track" : "Behind"}</span>
+              <span class="status-text">${done ? "Complete" : "Behind"}</span>
             </div>
           </div>
 
           <div class="counter counter-anchored">
-            <button class="btn" type="button" data-action="dec" aria-label="Decrease ${esc(m.label || id)}">−</button>
+            <button class="btn" type="button" data-action="dec" aria-label="Decrease ${shortLabel}">−</button>
             <div class="count" data-role="count">${val}</div>
-            <button class="btn" type="button" data-action="inc" aria-label="Increase ${esc(m.label || id)}">+</button>
+            <button class="btn" type="button" data-action="inc" aria-label="Increase ${shortLabel}">+</button>
           </div>
         </div>
       `);
@@ -242,7 +272,6 @@
 
       const store = getStore();
       const config = cfg || {};
-      const metricsList = Array.isArray(config.metrics) ? config.metrics : [];
 
       let state = store.load(STORAGE_KEY);
       if (!state || typeof state !== "object") state = {};
@@ -260,18 +289,6 @@
 
         const now = new Date();
         const key = monthKey(now);
-
-        // Reset button
-        if (btn.dataset.mmAction === "reset") {
-          ensureMonth(state, key);
-          for (const m of metricsList) {
-            if (m && m.id) setVal(state, key, m.id, 0);
-          }
-          pruneOldMonths(state);
-          store.save(STORAGE_KEY, state);
-          render(host, config, state, new Date());
-          return;
-        }
 
         const row = e.target.closest(".metric-row");
         if (!row) return;
