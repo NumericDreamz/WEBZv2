@@ -39,6 +39,16 @@ body{
 }
 
 /* ========================================================= */
+/* ================= Global Spacing Knobs ================== */
+/* ========================================================= */
+
+:root{
+  --head-gap: 10px;   /* title area -> next element (date pill / progress bar) */
+  --meta-gap: 10px;   /* date pill / progress bar -> first row */
+  --row-gap: 12px;    /* spacing BETWEEN rows (monthly/daily/weekly) */
+}
+
+/* ========================================================= */
 /* ==================== 3-column layout ==================== */
 /* ========================================================= */
 
@@ -375,6 +385,37 @@ body{
 .switch input:checked + .slider:before{
   transform: translateX(22px);
   background: #d9ffe6;
+}
+
+/* ========================================================= */
+/* =================== Global Row Spacing ================== */
+/* ========================================================= */
+
+/* 1) Title block spacing */
+.widget-head{
+  margin-bottom: var(--head-gap);
+}
+
+/* 2) If a progress bar (Monthly) is directly under the title */
+.metrics-card > .bar-row{
+  margin-top: 0;
+  margin-bottom: var(--meta-gap);
+}
+
+/* 3) If the Daily date pill is directly under the title */
+.metrics-card > .daily-progress{
+  margin-top: 0;
+  margin-bottom: var(--meta-gap);
+}
+
+/* 4) Kill per-row bottom margins so the global system is the ONLY system */
+.toggle-row{ margin-bottom: 0; }   /* <- this is the line that fixes Daily */
+.metric-row{ margin-bottom: 0; }   /* keeps Monthly consistent too */
+
+/* 5) Global “stack” spacing between rows */
+.metrics-card .toggle-row + .toggle-row,
+.metrics-card .metric-row + .metric-row{
+  margin-top: var(--row-gap);
 }
 
 /* ========================================================= */
@@ -885,6 +926,7 @@ body{
 .metrics-card .toggle-row + .metric-row{
   margin-top: var(--rowGap, 12px);
 }
+
 
 
 
