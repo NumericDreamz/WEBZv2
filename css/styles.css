@@ -306,7 +306,12 @@ body{
   border-radius: 10px;
   background: var(--panel2);
   border: 1px solid var(--border);
-  margin-bottom: 10px;
+
+  margin-bottom: 8px; /* tighter spacing to match Monthly */
+}
+
+.toggle-row:last-child{
+  margin-bottom: 0; /* don’t leave a dumb gap at the bottom */
 }
 
 .toggle-left .toggle-title{
@@ -837,5 +842,6 @@ body{
   margin-top: 0;        /* removes the big title-to-bar gap */
   margin-bottom: 10px;  /* adds space between bar and first row */
 }
+
 
 
