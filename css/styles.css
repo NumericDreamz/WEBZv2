@@ -381,8 +381,8 @@ body{
 /* ========================================================= */
 
 .toggle-row.toggle-complete{
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding-top: 5px;
+  padding-bottom: 5px;
 
   /* kill the green “toggle-done” border/shadow so it matches Monthly tiles */
   border-color: var(--border) !important;
@@ -842,6 +842,7 @@ body{
   margin-top: 0;        /* removes the big title-to-bar gap */
   margin-bottom: 10px;  /* adds space between bar and first row */
 }
+
 
 
 
