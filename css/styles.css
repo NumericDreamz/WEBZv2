@@ -118,7 +118,7 @@ body{
 }
 
 .metrics-card h2{
-  margin: 0 0 12px 0;
+  margin: 0;
   font-size: 16px;
   letter-spacing: 0.2px;
 }
@@ -283,7 +283,7 @@ body{
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .daily-progress{
@@ -293,6 +293,8 @@ body{
   border: 1px solid var(--border);
   border-radius: 999px;
   background: #0b0b0b;
+
+  margin-bottom: 10px; /* adds space before first row */
 }
 
 .toggle-row{
@@ -376,6 +378,10 @@ body{
 .toggle-row.toggle-complete{
   padding-top: 10px;
   padding-bottom: 10px;
+
+  /* kill the green “toggle-done” border/shadow so it matches Monthly tiles */
+  border-color: var(--border) !important;
+  box-shadow: none !important;
 }
 
 .toggle-row.toggle-complete .toggle-right{
@@ -383,6 +389,7 @@ body{
   align-items: center;
   justify-content: flex-end;
 }
+
 
 /* ========================================================= */
 /* ===== Weekly styling (reuses the Daily toggle look) ===== */
@@ -820,6 +827,15 @@ body{
   height: 100%;
   background: rgba(255,255,255,.55);
   border-radius: 999px;
+}
+
+/* ========================================================= */
+/* ============== Widget header sub-bar spacing ============= */
+/* ========================================================= */
+
+.metrics-card > .bar-row{
+  margin-top: 0;        /* removes the big title-to-bar gap */
+  margin-bottom: 10px;  /* adds space between bar and first row */
 }
 
 
