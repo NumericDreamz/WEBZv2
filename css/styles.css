@@ -544,6 +544,14 @@ body{
 }
 
 /* ========================================================= */
+/* ============ Monthly: Collapsed metric rows ============= */
+/* ========================================================= */
+
+.metric-row.metric-collapsed{
+  padding-bottom: 12px;  /* overrides the anchored-counter padding */
+}
+
+/* ========================================================= */
 /* ======= Favorites always use the same grid rules ======== */
 /* ========================================================= */
 
@@ -798,3 +806,4 @@ body{
   background: rgba(255,255,255,.55);
   border-radius: 999px;
 }
+
