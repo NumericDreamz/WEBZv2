@@ -709,12 +709,23 @@ body{
 /* ================= Monthly: Recognition ================== */
 /* ========================================================= */
 
+/* Expanded (normal) */
 .metric-row.recognition{
   position: relative;
   padding-bottom: 12px;   /* override the anchored-counter spacing */
-  display: block;
+  display: block;         /* recognition uses its own layout */
 }
 
+/* Collapsed (completed) */
+.metric-row.recognition.recog-collapsed{
+  display: flex;          /* go back to the standard row look */
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+
+/* Expanded header */
 .recog-head{
   display: flex;
   align-items: center;
@@ -740,6 +751,7 @@ body{
   color: var(--muted);
 }
 
+/* Bar pieces (used for Recognition total + the top-of-widget month bar) */
 .bar-row{
   display: grid;
   grid-template-columns: 44px 1fr 52px;
@@ -786,4 +798,3 @@ body{
   background: rgba(255,255,255,.55);
   border-radius: 999px;
 }
-
