@@ -8,24 +8,24 @@
   Tasks:
     1) Make next week’s schedule
        - Targets NEXT week (next Monday)
-       - Shows Wed 00:00 through Fri 23:59 (even if done, it collapses)
-       - Sat 00:00+ shows ONLY if not done (flashes angry)
-       - If previous target week exists and is overdue + not done, show that one instead
+       - Shows Wed 00:00 through Fri 23:59 (collapsed if complete)
+       - Sat 00:00+ flashes angry only if not done
+       - If completed, stays collapsed until midnight, then disappears
+       - If previous target exists, overdue, and not done, show that one
 
     2) Update Backlog
-       - Shows Tuesday 00:00 through Wednesday 23:59 (disappears Thu 00:00 no matter what)
-       - If not done by Tuesday 12:00, flashes angry
-       - Collapses to short label “Backlog” when complete
+       - Shows Tue 00:00 through Wed 23:59 (disappears Thu 00:00 no matter what)
+       - If not done by Tue 12:00, flashes angry
+       - Collapses to “Backlog” when complete
 
   Title:
-    "Weekly" (drops "Metrics")
+    "Weekly"
 
   Storage:
     STORAGE_KEY: portal_metrics_weekly_v2
-    State shape:
+    State:
       state["YYYY-MM-DD"][taskId] = boolean
-      - schedule stored under target Monday dateKey (next Monday or previous)
-      - backlog stored under current week Monday dateKey
+      state["YYYY-MM-DD"][taskId + "__doneAt"] = ms timestamp
 */
 
 /* ========================================================= */
@@ -40,6 +40,8 @@
 
   const TASK_SCHEDULE_ID = "make_next_week_schedule";
   const TASK_BACKLOG_ID  = "update_backlog";
+
+  const DONE_AT_SUFFIX = "__doneAt";
 
   const defaultConfig = {
     title: "Weekly",
@@ -88,6 +90,26 @@
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+  }
+
+  function doneAtKey(taskId) {
+    return `${taskId}${DONE_AT_SUFFIX}`;
+  }
+
+  function nextMidnightMs(ts) {
+    const d = new Date(Number(ts) || 0);
+    if (!Number.isFinite(d.getTime()) || d.getTime() <= 0) return 0;
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 1);
+    return d.getTime();
+  }
+
+  function isExpired(state, scopeKey, taskId, nowMs) {
+    const ts = Number(state?.[scopeKey]?.[doneAtKey(taskId)] || 0);
+    if (!ts) return false;
+    const nm = nextMidnightMs(ts);
+    if (!nm) return false;
+    return nowMs >= nm;
   }
 
   /* ========================================================= */
@@ -228,7 +250,6 @@
       return;
     }
 
-    // Not done: full label, possible angry flash
     if (titleEl) titleEl.textContent = row.dataset.full || "";
     if (overdue) row.classList.add("weekly-overdue");
   }
@@ -240,7 +261,6 @@
     const slot = document.getElementById(slotId);
     if (!slot) return;
 
-    // prevent double-init
     if (slot.dataset.weeklyInited === "1") return;
     slot.dataset.weeklyInited = "1";
 
@@ -253,6 +273,7 @@
 
     function rerender() {
       const now = new Date();
+      const nowMs = now.getTime();
 
       let state = normalizeState(store.load(STORAGE_KEY));
       pruneOld(state);
@@ -264,31 +285,42 @@
       const prevTargetMon = addDays(curTargetMon, -7);
       const prevTargetKey = dateKey(prevTargetMon);
 
-      // schedule task def
       const schedDef = cfg.tasks.find(t => t.id === TASK_SCHEDULE_ID) || defaultConfig.tasks[0];
 
       // Only consider previous schedule if it already exists
       const prevExists = Object.prototype.hasOwnProperty.call(state, prevTargetKey);
+
+      // Don't create fake previous entries
       const prevDone = prevExists ? !!state[prevTargetKey]?.[TASK_SCHEDULE_ID] : true;
       const prevIsOverdue = now >= scheduleOverdueStart(prevTargetMon);
+      const prevExpired = prevExists && prevDone && isExpired(state, prevTargetKey, TASK_SCHEDULE_ID, nowMs);
 
       let schedTargetMonToShow = null;
 
-      if (prevExists && !prevDone && prevIsOverdue) {
+      // If previous exists, overdue, and not done, show that angry one.
+      // If it IS done, show it collapsed until midnight, then let it vanish.
+      if (prevExists && prevIsOverdue && (!prevDone || (prevDone && !prevExpired))) {
         schedTargetMonToShow = prevTargetMon;
       } else {
-        // Ensure current key exists ONLY so we can check done accurately
+        // Ensure current entry exists so we can correctly determine "done"
         ensureTask(state, curTargetKey, TASK_SCHEDULE_ID);
-        store.save(STORAGE_KEY, state);
 
         const avail = scheduleAvailableStart(curTargetMon);
         const od = scheduleOverdueStart(curTargetMon);
+
         const curDone = !!state[curTargetKey]?.[TASK_SCHEDULE_ID];
 
-        const inPreDueWindow = (now >= avail && now < od);      // Wed–Fri
-        const inOverdueWindow = (now >= od && !curDone);        // Sat+ only if not done
+        // If done but no doneAt yet (older state), stamp it now so midnight cleanup works.
+        if (curDone && !state[curTargetKey]?.[doneAtKey(TASK_SCHEDULE_ID)]) {
+          state[curTargetKey][doneAtKey(TASK_SCHEDULE_ID)] = nowMs;
+        }
 
-        if (inPreDueWindow || inOverdueWindow) {
+        const curExpired = curDone && isExpired(state, curTargetKey, TASK_SCHEDULE_ID, nowMs);
+
+        const inPreDueWindow = (now >= avail && now < od); // Wed–Fri
+        const inOverdueWindow = (now >= od && (!curDone || (curDone && !curExpired))); // Sat+ if not done OR done-but-not-expired
+
+        if ((inPreDueWindow && (!curDone || (curDone && !curExpired))) || inOverdueWindow) {
           schedTargetMonToShow = curTargetMon;
         }
       }
@@ -306,24 +338,33 @@
 
       if (showBacklog) {
         ensureTask(state, backlogKey, TASK_BACKLOG_ID);
+
+        const blDone = !!state[backlogKey]?.[TASK_BACKLOG_ID];
+        if (blDone && !state[backlogKey]?.[doneAtKey(TASK_BACKLOG_ID)]) {
+          state[backlogKey][doneAtKey(TASK_BACKLOG_ID)] = nowMs;
+        }
       }
 
-      // Persist state updates (ensure keys exist)
       store.save(STORAGE_KEY, state);
 
-      /* ================= Decide What To Show ================= */
+      /* ================= Build Rows ================= */
       const rows = [];
 
-      // week label: prefer schedule week-of if schedule is showing, otherwise current week
       const weekLabel = schedTargetMonToShow
         ? labelForWeek(schedTargetMonToShow)
         : labelForWeek(curWeekMon);
 
-      // Schedule row
+      // Schedule row (skip if it’s expired)
       if (schedTargetMonToShow) {
         const schedKey = dateKey(schedTargetMonToShow);
         ensureTask(state, schedKey, TASK_SCHEDULE_ID);
-        rows.push(buildRow(schedDef, schedKey));
+
+        const schedDone = !!state[schedKey]?.[TASK_SCHEDULE_ID];
+        const schedExpired = schedDone && isExpired(state, schedKey, TASK_SCHEDULE_ID, nowMs);
+
+        if (!schedExpired) {
+          rows.push(buildRow(schedDef, schedKey));
+        }
       }
 
       // Backlog row
@@ -341,10 +382,12 @@
       const card = slot.querySelector('[data-widget="weekly"]');
       if (!card) return;
 
-      // Apply row state classes (done / overdue / collapsed)
-      // Schedule overdue logic depends on which target we’re showing
+      /* ================= Apply Row State ================= */
+
+      // Schedule state
       if (schedTargetMonToShow) {
         const schedKey = dateKey(schedTargetMonToShow);
+
         const schedDone = !!state[schedKey]?.[TASK_SCHEDULE_ID];
         const schedOverdue = (now >= scheduleOverdueStart(schedTargetMonToShow) && !schedDone);
 
@@ -352,7 +395,7 @@
         if (row) setRowState(row, schedDone, schedOverdue);
       }
 
-      // Backlog overdue starts Tuesday noon if not done
+      // Backlog state
       if (showBacklog) {
         const blDone = !!state[backlogKey]?.[TASK_BACKLOG_ID];
         const blOverdue = (now >= backlogAngryStart(curWeekMon) && !blDone);
@@ -362,7 +405,7 @@
       }
     }
 
-    // One delegated handler, survives rerenders
+    // Delegated change handler
     slot.addEventListener("change", (e) => {
       const input = e.target.closest('input[data-action="toggle"]');
       if (!input) return;
@@ -371,23 +414,28 @@
       const scopeKey = input.dataset.scopeKey;
       if (!taskId || !scopeKey) return;
 
-      const store2 = getStore();
-      let state = normalizeState(store2.load(STORAGE_KEY));
+      let state = normalizeState(store.load(STORAGE_KEY));
       pruneOld(state);
 
       ensureTask(state, scopeKey, taskId);
-      state[scopeKey][taskId] = !!input.checked;
 
-      store2.save(STORAGE_KEY, state);
+      const checked = !!input.checked;
+      state[scopeKey][taskId] = checked;
 
-      // Rerender based on new truth (also applies hide windows)
+      // Track completion time so we can derez at midnight.
+      if (checked) {
+        state[scopeKey][doneAtKey(taskId)] = Date.now();
+      } else {
+        delete state[scopeKey][doneAtKey(taskId)];
+      }
+
+      store.save(STORAGE_KEY, state);
       rerender();
     });
 
     rerender();
 
-    // Optional: keep it “live” for the Backlog noon cutoff + hide on Thu 00:00
-    // (Cheap timer, low drama)
+    // Keep it time-aware (noon cutoff + midnight disappear + Thu hide)
     setInterval(rerender, 60 * 1000);
   }
 
