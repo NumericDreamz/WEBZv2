@@ -211,7 +211,7 @@
 
     const emptyBlock = `
       <div class="muted-box">
-        All yearly tasks complete.
+        All annual tasks complete.
       </div>
     `;
 
@@ -368,4 +368,5 @@
   window.PortalWidgets = window.PortalWidgets || {};
   window.PortalWidgets.Yearly = { init };
 })();
+
 
