@@ -33,8 +33,6 @@
       window.PortalWidgets.Yearly?.init("yearly-metrics-slot");
       window.PortalWidgets.RecentTasks?.init("recent-tasks-slot");
 
-      window.PortalBackup?.initBackupUI?.();
-
       console.log("[Portal] boot complete");
     } catch (err) {
       console.error("[Portal] boot crashed:", err);
@@ -48,3 +46,4 @@
     boot();
   }
 })();
+
