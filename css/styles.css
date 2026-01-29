@@ -370,6 +370,21 @@ body{
 }
 
 /* ========================================================= */
+/* ================ Daily: Completed toggles ================ */
+/* ========================================================= */
+
+.toggle-row.toggle-complete{
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.toggle-row.toggle-complete .toggle-right{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* ========================================================= */
 /* ===== Weekly styling (reuses the Daily toggle look) ===== */
 /* ========================================================= */
 
@@ -806,4 +821,5 @@ body{
   background: rgba(255,255,255,.55);
   border-radius: 999px;
 }
+
 
