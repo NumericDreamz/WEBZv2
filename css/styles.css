@@ -45,7 +45,7 @@ body{
 :root{
   --head-gap: 10px;   /* title area -> next element (date pill / progress bar) */
   --meta-gap: 10px;   /* date pill / progress bar -> first row */
-  --row-gap: 12px;    /* spacing BETWEEN rows (monthly/daily/weekly) */
+  --row-gap: 5px;    /* spacing BETWEEN rows (monthly/daily/weekly) */
 }
 
 /* ========================================================= */
@@ -926,6 +926,7 @@ body{
 .metrics-card .toggle-row + .metric-row{
   margin-top: var(--rowGap, 12px);
 }
+
 
 
 
