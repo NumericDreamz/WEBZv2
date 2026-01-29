@@ -3,13 +3,21 @@
 /* ========================================================= */
 /*
   Purpose:
-    Yearly widgets with per-person roster:
-      - Annual LOTO Inspections (Technicians)
-      - Plan For Zero (Employees)
+    Yearly roster-based tasks (Annual LOTO, Plan For Zero)
+
+  Behavior:
+    - Spawns each year (Jan 1) and persists state in storage.
+    - Tasks hide individually when completed.
+    - The YEARLY SECTION ITSELF NEVER DISAPPEARS.
+      If all tasks are complete, it shows a placeholder message and waits.
+
+  UI:
+    - Title: "Yearly" (drops "Metrics")
+    - Progress bar under the title: % through the year
+    - Instruction text hides once SET is pressed (locked = true)
 
   Storage:
     STORAGE_KEY: portal_metrics_yearly_v2
-    Scope: Per-year (YYYY)
 
   External deps:
     window.PortalApp.Storage (load/save) if available
@@ -24,7 +32,7 @@
   const STORAGE_KEY = "portal_metrics_yearly_v2";
 
   const defaultConfig = {
-    title: "Yearly", // was "Yearly Metrics"
+    title: "Yearly",
     tasks: [
       { id: "annual_loto", label: "Annual LOTO Inspections", itemName: "Technician" },
       { id: "plan_for_zero", label: "Plan For Zero", itemName: "Employee" }
@@ -38,22 +46,23 @@
     return String(d.getFullYear());
   }
 
-  function daysInYear(d) {
-    const y = d.getFullYear();
-    const start = Date.UTC(y, 0, 1);
-    const end = Date.UTC(y + 1, 0, 1);
-    return Math.round((end - start) / 86400000);
+  function daysInYear(yearNum) {
+    const start = new Date(yearNum, 0, 1);
+    const next = new Date(yearNum + 1, 0, 1);
+    return Math.round((next - start) / 86400000);
   }
 
   function dayOfYear(d) {
-    const y = d.getFullYear();
-    const start = Date.UTC(y, 0, 1);
-    const today = Date.UTC(y, d.getMonth(), d.getDate());
-    return Math.floor((today - start) / 86400000) + 1; // 1..365/366
+    const start = new Date(d.getFullYear(), 0, 1);
+    const ms = d - start;
+    return Math.floor(ms / 86400000) + 1; // 1..365/366
   }
 
-  function clamp(n, min, max) {
-    return Math.max(min, Math.min(max, n));
+  function yearProgressPct(d) {
+    const y = d.getFullYear();
+    const doy = dayOfYear(d);
+    const diy = daysInYear(y);
+    return Math.max(0, Math.min(100, Math.round((doy / diy) * 100)));
   }
 
   function pruneYears(state, keep = 6) {
@@ -160,8 +169,8 @@
     const emptyHintStyle = names.length ? "display:none" : "";
     const controlsStyle = locked ? "display:none" : "";
 
-    // Hide instructions after SET (locked)
-    const instructionsHtml = locked
+    // IMPORTANT: hide instructions after SET (locked)
+    const instructions = locked
       ? ""
       : `
         <div class="yearly-sub">
@@ -173,7 +182,7 @@
       <section class="metrics-card" data-widget="yearly-task" data-task="${escHtml(taskDef.id)}">
         <div class="yearly-task">
           <div class="yearly-title">${escHtml(taskDef.label)}</div>
-          ${instructionsHtml}
+          ${instructions}
         </div>
 
         <div class="yearly-controls" style="${controlsStyle}">
@@ -193,15 +202,18 @@
   }
 
   function buildHTML(cfg, y, stateYear, now) {
-    // Year progress bar (uses your existing bar-row / bar-track.month styles)
-    const dim = daysInYear(now);
-    const doy = dayOfYear(now);
-    const pct = clamp(Math.round((doy / dim) * 100), 0, 100);
+    const pct = yearProgressPct(now);
 
     const taskCards = cfg.tasks
-      .filter(t => !stateYear.tasks[t.id].completed)
+      .filter(t => !stateYear.tasks[t.id].completed) // hide completed tasks
       .map(t => buildTaskCard(t, stateYear.tasks[t.id]))
       .join("");
+
+    const emptyBlock = `
+      <div class="muted-box">
+        All yearly tasks complete. This section stays here so it can yell at you again next January.
+      </div>
+    `;
 
     return `
       <section class="metrics-card" data-widget="yearly">
@@ -220,7 +232,7 @@
         </div>
 
         <div class="yearly-stack">
-          ${taskCards || `<div class="muted-box">All yearly tasks complete. Go enjoy your rare moment of peace.</div>`}
+          ${taskCards || emptyBlock}
         </div>
       </section>
     `;
@@ -233,6 +245,7 @@
     const slot = document.getElementById(slotId);
     if (!slot) return;
 
+    // prevent double-init
     if (slot.dataset.yearlyInited === "1") return;
     slot.dataset.yearlyInited = "1";
 
@@ -265,23 +278,16 @@
       pruneYears(state, 6);
       store.save(STORAGE_KEY, state);
 
-      const allComplete = cfg.tasks.every(t => !!state[y].tasks[t.id].completed);
-      if (allComplete) {
-        slot.innerHTML = "";
-        return;
-      }
-
+      // NOTE: We do NOT hide the entire Yearly widget anymore.
       slot.innerHTML = buildHTML(cfg, y, state[y], new Date());
     }
 
     rerender();
 
+    // Stable listener on slot survives rerenders
     slot.addEventListener("click", (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
-
-      const widget = slot.querySelector('[data-widget="yearly"]');
-      if (!widget) return;
 
       const action = btn.dataset.action;
       const taskId = btn.dataset.task;
@@ -291,6 +297,7 @@
       const taskDef = cfg.tasks.find(t => t.id === taskId);
       if (!taskDef) return;
 
+      // Add person
       if (action === "add-person") {
         if (taskObj.locked) return;
 
@@ -309,6 +316,7 @@
         return;
       }
 
+      // Delete person (only before lock)
       if (action === "del-person") {
         if (taskObj.locked) return;
 
@@ -325,6 +333,7 @@
         return;
       }
 
+      // Lock roster
       if (action === "lock-roster") {
         if (taskObj.locked) return;
 
@@ -339,6 +348,7 @@
         return;
       }
 
+      // Toggle person completion
       if (action === "toggle-person") {
         const personEncoded = btn.dataset.person;
         const person = normalizeName(decodePerson(personEncoded));
@@ -355,9 +365,6 @@
     });
   }
 
-  /* ========================================================= */
-  /* ======================= Export API ====================== */
-  /* ========================================================= */
   window.PortalWidgets = window.PortalWidgets || {};
   window.PortalWidgets.Yearly = { init };
 })();
