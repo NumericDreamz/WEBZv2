@@ -11,6 +11,13 @@
   Top progress bar:
     % through the current month (under the title)
 
+  Recognition behavior:
+    - No longer shows a month progress bar inside the Recognition block
+      (because Monthly already has it at the top).
+    - When Recognition hits 100% (used >= allotment), it collapses into a
+      minimal row: "Recognition" + green "On track" pill.
+    - It expands again automatically when the month changes (new monthKey).
+
   Storage:
     STORAGE_KEY: portal_monthly_metrics_v2
 
@@ -136,22 +143,48 @@
       const id = m && m.id;
       if (!id) continue;
 
-      /* ================= Recognition (special) ================= */
+      /* ========================================================= */
+      /* ================ Recognition (special) ================== */
+      /* ========================================================= */
       if (m.type === "recognition") {
+        const label = esc(m.label || "Recognition");
         const allot = Number(m.allotment || 0) || 0;
-        const used = clamp(getVal(state, key, id), 0, allot || 999999);
-        const pctUsed = allot ? Math.round((used / allot) * 100) : 0;
 
+        const usedRaw = getVal(state, key, id);
+        const used = clamp(usedRaw, 0, allot || 999999);
+
+        const pctUsed = allot ? clamp(Math.round((used / allot) * 100), 0, 100) : 0;
+        const done = allot > 0 && used >= allot;
+
+        // COLLAPSED WHEN COMPLETE
+        if (done) {
+          htmlParts.push(`
+            <div class="metric-row recognition recog-collapsed" data-metric-id="${esc(id)}" data-allotment="${esc(allot)}">
+              <div class="metric-left">
+                <div class="metric-title">${label}</div>
+              </div>
+
+              <div class="status-pill status-good" aria-live="polite">
+                <span class="status-dot"></span>
+                <span class="status-text">On track</span>
+              </div>
+            </div>
+          `);
+          continue;
+        }
+
+        // EXPANDED WHEN NOT COMPLETE
         htmlParts.push(`
           <div class="metric-row recognition" data-metric-id="${esc(id)}" data-allotment="${esc(allot)}">
             <div class="recog-head">
-              <div class="recog-title">${esc(m.label || "Recognition")}</div>
+              <div class="recog-title">${label}</div>
               <div class="recog-right">
                 <div class="recog-points"><span data-role="recog-used">${used}</span>/${allot}</div>
                 <button class="btn" type="button" data-action="recog-edit" aria-label="Update Recognition points">+</button>
               </div>
             </div>
 
+            <!-- Only the total progress bar now (month progress lives at top of Monthly widget) -->
             <div class="bar-row">
               <div class="bar-label">Total</div>
               <div class="bar-track points">
@@ -159,21 +192,15 @@
               </div>
               <div class="bar-pct"><span data-role="recog-pct">${pctUsed}</span>%</div>
             </div>
-
-            <div class="bar-row">
-              <div class="bar-label">${esc(monthShort)}</div>
-              <div class="bar-track month">
-                <div class="bar-fill month" style="width:${monthPct}%;"></div>
-              </div>
-              <div class="bar-pct">${monthPct}%</div>
-            </div>
           </div>
         `);
 
         continue;
       }
 
-      /* ================= Standard counter metric ================= */
+      /* ========================================================= */
+      /* ============== Standard counter metric ================== */
+      /* ========================================================= */
       const target = Number(m.target || 0);
       const val = getVal(state, key, id);
       const good = target ? val >= target : false;
@@ -252,7 +279,7 @@
         const metricId = row.dataset.metricId;
         if (!metricId) return;
 
-        // Recognition edit
+        // Recognition edit (only exists in expanded view)
         if (btn.dataset.action === "recog-edit") {
           const allot = Number(row.dataset.allotment || 0) || 0;
           const current = getVal(state, key, metricId);
