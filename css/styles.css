@@ -21,6 +21,8 @@
   --goodBorder: #1f5a2a;
   --goodText: #b8ffcc;
   --goodDot: #22c55e;
+  
+  --rowGap: 12px;
 }
 
 body{
@@ -307,7 +309,6 @@ body{
   background: var(--panel2);
   border: 1px solid var(--border);
 
-  margin-bottom: 8px; /* tighter spacing to match Monthly */
 }
 
 .toggle-row:last-child{
@@ -867,6 +868,22 @@ body{
 .metrics-card > .bar-row{
   margin-top: 0;        /* removes the big title-to-bar gap */
   margin-bottom: 10px;  /* adds space between bar and first row */
+}
+
+/* ========================================================= */
+/* ============ Unified Row Spacing (All Widgets) =========== */
+/* ========================================================= */
+
+.metrics-card .metric-row,
+.metrics-card .toggle-row{
+  margin: 0; /* stop random margin stacking */
+}
+
+.metrics-card .metric-row + .metric-row,
+.metrics-card .toggle-row + .toggle-row,
+.metrics-card .metric-row + .toggle-row,
+.metrics-card .toggle-row + .metric-row{
+  margin-top: var(--rowGap, 12px);
 }
 
 
