@@ -443,6 +443,32 @@ body{
 }
 
 /* ========================================================= */
+/* ================= Weekly: Standardization =============== */
+/* ========================================================= */
+
+/* Put the pill under the title with sane spacing */
+.widget-sub{
+  margin: 0 0 10px 0;
+}
+
+/* Collapse behavior: swap switch -> Complete pill */
+.toggle-pill{
+  display: none;
+}
+
+.toggle-row.is-complete .switch{
+  display: none;
+}
+
+.toggle-row.is-complete .toggle-pill{
+  display: inline-flex;
+}
+
+/* Optional: keep weekly rows using the normal tile styling when not overdue.
+   (weekly-warn/weekly-good can stay in the file, we just won’t use them anymore.) */
+
+
+/* ========================================================= */
 /* =================== Yearly tech roster ================== */
 /* ========================================================= */
 
@@ -842,6 +868,7 @@ body{
   margin-top: 0;        /* removes the big title-to-bar gap */
   margin-bottom: 10px;  /* adds space between bar and first row */
 }
+
 
 
 
