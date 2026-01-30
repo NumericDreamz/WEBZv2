@@ -25,9 +25,6 @@
     window.PortalApp.Storage (load/save) if available
 */
 
-/* ========================================================= */
-/* ================= Config / Globals ====================== */
-/* ========================================================= */
 (function () {
   "use strict";
 
@@ -35,7 +32,6 @@
 
   const STORAGE_KEY = "portal_recent_tasks_v2";
   const LEGACY_KEY_V1 = "portal_recent_tasks_v1";
-
   const MAX_ITEMS = 60;
 
   /* ========================================================= */
@@ -66,7 +62,7 @@
 
   function msUntilNextMidnight(now = new Date()) {
     const next = new Date(now);
-    next.setHours(24, 0, 0, 50); // small buffer after midnight
+    next.setHours(24, 0, 0, 50); // tiny buffer after midnight
     return Math.max(250, next.getTime() - now.getTime());
   }
 
@@ -75,7 +71,6 @@
   }
 
   function hash36(str) {
-    // small deterministic hash, good enough for stable IDs
     let h = 0;
     for (let i = 0; i < str.length; i++) {
       h = ((h << 5) - h) + str.charCodeAt(i);
@@ -88,6 +83,25 @@
     const t = normalizeText(text).toLowerCase();
     const c = Number(createdAt) || 0;
     return `legacy_${hash36(t)}_${Math.floor(c / 1000)}`;
+  }
+
+  function isThenable(v) {
+    return v && (typeof v === "object" || typeof v === "function") && typeof v.then === "function";
+  }
+
+  function safeParse(raw) {
+    try {
+      const v = JSON.parse(raw);
+      return (v && typeof v === "object") ? v : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function maybeParseJSON(v) {
+    if (typeof v !== "string") return v;
+    const parsed = safeParse(v);
+    return parsed ?? v;
   }
 
   /* ========================================================= */
@@ -109,12 +123,22 @@
     return window.PortalApp?.Storage || getFallbackStore();
   }
 
-  function safeParse(raw) {
+  async function storeLoad(store, key) {
     try {
-      const v = JSON.parse(raw);
-      return (v && typeof v === "object") ? v : null;
+      let v = store.load(key);
+      if (isThenable(v)) v = await v;
+      return maybeParseJSON(v);
     } catch {
       return null;
+    }
+  }
+
+  async function storeSave(store, key, val) {
+    try {
+      const r = store.save(key, val);
+      if (isThenable(r)) await r;
+    } catch {
+      // swallow: UI should still work even if persistence is having a tantrum
     }
   }
 
@@ -122,7 +146,6 @@
   /* ================== State Normalization ================== */
   /* ========================================================= */
   function normalizeItem(it) {
-    // Accept many legacy shapes (objects, strings, etc.)
     if (it == null) return null;
 
     if (typeof it === "string") {
@@ -164,10 +187,6 @@
   }
 
   function normalizeState(raw) {
-    // Accept:
-    // - { items: [...] }
-    // - legacy [] (array directly)
-    // - garbage -> empty
     const obj = (raw && typeof raw === "object") ? raw : {};
     const arr = Array.isArray(obj.items)
       ? obj.items
@@ -183,13 +202,13 @@
 
   function prune(state) {
     if (!state || !Array.isArray(state.items)) return;
+    state.items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     if (state.items.length > MAX_ITEMS) {
-      state.items = state.items.slice(0, MAX_ITEMS); // newest first
+      state.items = state.items.slice(0, MAX_ITEMS);
     }
   }
 
   function mergeItems(dst, src) {
-    // Dedupe by id, prefer "more complete" record
     const map = new Map();
     dst.forEach(it => map.set(it.id, it));
 
@@ -200,7 +219,6 @@
         return;
       }
 
-      // Merge: keep earliest createdAt, and keep completion if either is completed
       cur.createdAt = Math.min(cur.createdAt || it.createdAt, it.createdAt);
       cur.text = cur.text || it.text;
 
@@ -216,7 +234,6 @@
       }
     });
 
-    // Return newest-first list
     return Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }
 
@@ -224,7 +241,6 @@
   /* ================= Midnight Rollover ===================== */
   /* ========================================================= */
   function isOverdue(item, nowTs) {
-    // If it existed before today's midnight and it's still not done, it's overdue.
     return !item.completed && item.createdAt < startOfDay(nowTs);
   }
 
@@ -232,15 +248,11 @@
     const sod = startOfDay(nowTs);
     const before = state.items.length;
 
-    // Remove items completed before today started (midnight)
     state.items = state.items.filter((it) => {
       if (!it.completed) return true;
       if (!Number.isFinite(it.completedAt)) return true;
       return it.completedAt >= sod;
     });
-
-    // Keep ordering newest-first
-    state.items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
     prune(state);
     return state.items.length !== before;
@@ -249,9 +261,8 @@
   /* ========================================================= */
   /* ====================== Migration ======================== */
   /* ========================================================= */
-  function loadLegacyV1(store) {
-    // Try store.load first (in case it exists in master), then raw localStorage.
-    const fromStore = store.load(LEGACY_KEY_V1);
+  async function loadLegacyV1(store) {
+    const fromStore = await storeLoad(store, LEGACY_KEY_V1);
     if (fromStore) return fromStore;
 
     const raw = localStorage.getItem(LEGACY_KEY_V1);
@@ -260,17 +271,16 @@
     return safeParse(raw);
   }
 
-  function migrateIfNeeded(store, state) {
+  async function migrateIfNeeded(store, state) {
     if (state._migratedFromV1) return false;
 
-    const legacyRaw = loadLegacyV1(store);
+    const legacyRaw = await loadLegacyV1(store);
     if (!legacyRaw) {
       state._migratedFromV1 = true;
       return true;
     }
 
     const legacyState = normalizeState(legacyRaw);
-
     if (legacyState.items.length) {
       state.items = mergeItems(state.items, legacyState.items);
     }
@@ -288,7 +298,7 @@
 
     const rows = state.items
       .slice()
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) // newest first
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
       .map((it) => {
         const overdue = isOverdue(it, nowTs);
         const rowCls = `toggle-row rt-row${overdue ? " rt-overdue" : ""}`;
@@ -340,7 +350,6 @@
           ${rows || empty}
         </div>
 
-        <!-- Modal -->
         <div class="rt-modal-backdrop" data-role="rt-modal" aria-hidden="true">
           <div class="rt-modal" role="dialog" aria-modal="true" aria-label="Add task">
             <div class="rt-modal-head">
@@ -372,33 +381,31 @@
       const slot = document.getElementById(slotId);
       if (!slot) return;
 
-      // Prevent double-init
       if (slot.dataset.recentInited === "1") return;
       slot.dataset.recentInited = "1";
 
       const store = getStore();
 
-      // Load v2 state
-      let state = normalizeState(store.load(STORAGE_KEY));
-
-      // Migrate from v1 once
-      const didMigrate = migrateIfNeeded(store, state);
-
-      // Apply rollover rules immediately
-      rollover(state, Date.now());
-
-      // Save v2
-      prune(state);
-      store.save(STORAGE_KEY, state);
-
-      render(slot, state);
+      let state = { items: [], _migratedFromV1: false };
+      let ready = false;
 
       let midnightTimer = null;
+      let saveTimer = null;
+
+      function queueSave() {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+          saveTimer = null;
+          prune(state);
+          // fire-and-forget, debounced. keeps Apps Script from crying.
+          storeSave(store, STORAGE_KEY, state);
+        }, 250);
+      }
 
       function saveAndRender() {
         prune(state);
-        store.save(STORAGE_KEY, state);
         render(slot, state);
+        queueSave();
       }
 
       function openModal() {
@@ -422,21 +429,16 @@
         if (midnightTimer) clearTimeout(midnightTimer);
         midnightTimer = setTimeout(() => {
           const changed = rollover(state, Date.now());
-          if (changed) store.save(STORAGE_KEY, state);
           render(slot, state);
+          if (changed) queueSave();
           scheduleMidnightTick();
         }, msUntilNextMidnight(new Date()));
       }
 
-      scheduleMidnightTick();
-
-      /* ========================================================= */
-      /* ======================= Events ========================== */
-      /* ========================================================= */
-
-      // Clicks (add/open/close/modal + backdrop)
+      /* Events */
       slot.addEventListener("click", (e) => {
-        // Backdrop click closes only if you clicked the backdrop itself
+        if (!ready) return;
+
         const backdrop = slot.querySelector('[data-role="rt-modal"]');
         if (backdrop && e.target === backdrop && backdrop.classList.contains("rt-open")) {
           closeModal();
@@ -475,12 +477,12 @@
 
           closeModal();
           saveAndRender();
-          return;
         }
       });
 
-      // Enter/Escape in modal input
       slot.addEventListener("keydown", (e) => {
+        if (!ready) return;
+
         const backdrop = slot.querySelector('[data-role="rt-modal"]');
         if (!backdrop || !backdrop.classList.contains("rt-open")) return;
 
@@ -511,8 +513,9 @@
         }
       });
 
-      // Toggle completion
       slot.addEventListener("change", (e) => {
+        if (!ready) return;
+
         const input = e.target.closest('input[data-action="toggle"]');
         if (!input) return;
 
@@ -527,7 +530,31 @@
 
         saveAndRender();
       });
+
+      /* Boot (async-safe) */
+      render(slot, state);
+
+      (async () => {
+        const rawV2 = await storeLoad(store, STORAGE_KEY);
+        const hadExistingV2 = rawV2 != null;
+
+        state = normalizeState(rawV2);
+
+        let mutated = false;
+        mutated = (await migrateIfNeeded(store, state)) || mutated;
+        mutated = rollover(state, Date.now()) || mutated;
+        prune(state);
+
+        // Critical: DON'T auto-save an empty state if we didn't actually load one.
+        // That’s how you wipe remote data during hydration.
+        if (hadExistingV2 || mutated || state.items.length) {
+          await storeSave(store, STORAGE_KEY, state);
+        }
+
+        render(slot, state);
+        ready = true;
+        scheduleMidnightTick();
+      })();
     }
   };
 })();
-
