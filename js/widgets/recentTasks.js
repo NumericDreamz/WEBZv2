@@ -10,23 +10,22 @@
     - Completed tasks show the green "Complete" pill.
     - At midnight (local time):
         - Tasks completed before midnight are removed.
-        - Any still-pending tasks become OVERDUE (angry flashing) until completed.
-
-  Migration:
-    - Pulls legacy state from: portal_recent_tasks_v1
-    - Writes normalized state into: portal_recent_tasks_v2
-    - Runs once (tracked in state._migratedFromV1)
+        - Any still-pending tasks created before midnight become OVERDUE (flashing) until completed.
 
   Storage:
     STORAGE_KEY: portal_recent_tasks_v2
     State: { items: [{ id, text, createdAt, completed, completedAt }], _migratedFromV1?: true }
 
-  External deps:
-    window.PortalApp.Storage (load/save) if available
+  Notes:
+    - Supports sync OR async Storage.load/save (Promises).
+    - Robust timestamp parsing for Google Sheets / Apps Script strings.
+    - Avoids overwriting remote state with empty state during first paint/hydration.
 */
 
 (function () {
   "use strict";
+
+  console.log("[RecentTasks] build 2026-01-30_01");
 
   window.PortalWidgets = window.PortalWidgets || {};
 
@@ -85,6 +84,11 @@
     return `legacy_${hash36(t)}_${Math.floor(c / 1000)}`;
   }
 
+  function stableIdFromTextOnly(text) {
+    const t = normalizeText(text).toLowerCase();
+    return `t_${hash36(t)}`;
+  }
+
   function isThenable(v) {
     return v && (typeof v === "object" || typeof v === "function") && typeof v.then === "function";
   }
@@ -102,6 +106,44 @@
     if (typeof v !== "string") return v;
     const parsed = safeParse(v);
     return parsed ?? v;
+  }
+
+  function toBool(v) {
+    if (typeof v === "boolean") return v;
+    if (typeof v === "number") return v !== 0;
+    if (typeof v === "string") {
+      const s = v.trim().toLowerCase();
+      return s === "true" || s === "yes" || s === "y" || s === "1" || s === "done" || s === "complete";
+    }
+    return false;
+  }
+
+  function toMs(v, fallback = null) {
+    if (v == null) return fallback;
+
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+
+    if (v instanceof Date) {
+      const t = v.getTime();
+      return Number.isFinite(t) ? t : fallback;
+    }
+
+    if (typeof v === "string") {
+      const s = v.trim();
+      if (!s) return fallback;
+
+      // Numeric string
+      if (/^-?\d+(\.\d+)?$/.test(s)) {
+        const n = Number(s);
+        return Number.isFinite(n) ? n : fallback;
+      }
+
+      // ISO / locale date string
+      const p = Date.parse(s);
+      return Number.isNaN(p) ? fallback : p;
+    }
+
+    return fallback;
   }
 
   /* ========================================================= */
@@ -138,7 +180,7 @@
       const r = store.save(key, val);
       if (isThenable(r)) await r;
     } catch {
-      // swallow: UI should still work even if persistence is having a tantrum
+      // keep UI alive even if persistence is acting feral
     }
   }
 
@@ -148,6 +190,7 @@
   function normalizeItem(it) {
     if (it == null) return null;
 
+    // string-only legacy
     if (typeof it === "string") {
       const t = normalizeText(it);
       if (!t) return null;
@@ -166,27 +209,44 @@
     const text = normalizeText(it.text ?? it.title ?? it.task ?? it.label ?? "");
     if (!text) return null;
 
-    const createdAt = Number(it.createdAt ?? it.created ?? it.ts ?? Date.now());
-    const completed = !!(it.completed ?? it.done ?? false);
+    const createdAtRaw =
+      it.createdAt ?? it.created ?? it.ts ?? it.timeCreated ?? it.created_on ?? it.createdOn ?? null;
 
-    let completedAt = it.completedAt ?? it.doneAt ?? null;
-    completedAt = (completedAt == null) ? null : Number(completedAt);
+    const completedRaw =
+      it.completed ?? it.done ?? it.isComplete ?? it.complete ?? it.status ?? false;
 
-    const ca = Number.isFinite(createdAt) ? createdAt : Date.now();
-    const id = String(it.id ?? stableIdFrom(text, ca) ?? uid());
+    const completedAtRaw =
+      it.completedAt ?? it.doneAt ?? it.timeCompleted ?? it.completed_on ?? it.completedOn ?? null;
+
+    let createdAt = toMs(createdAtRaw, null);
+    const completed = toBool(completedRaw);
+    let completedAt = toMs(completedAtRaw, null);
+
+    // Prefer stability. If createdAt is missing/unparseable, use 0 (epoch) so it doesn't reshuffle as "now" every load.
+    if (!Number.isFinite(createdAt)) createdAt = 0;
+
+    // If completed but timestamp missing, keep null (rollover will use createdAt as fallback when deciding what to clear).
+    if (completed && !Number.isFinite(completedAt)) completedAt = null;
+    if (!completed) completedAt = null;
+
+    const id =
+      (it.id != null && String(it.id)) ||
+      (createdAt > 0 ? stableIdFrom(text, createdAt) : stableIdFromTextOnly(text));
 
     return {
       id,
       text,
-      createdAt: ca,
+      createdAt,
       completed,
-      completedAt: completed
-        ? (Number.isFinite(completedAt) ? completedAt : Date.now())
-        : null
+      completedAt
     };
   }
 
   function normalizeState(raw) {
+    // Accept:
+    // - { items: [...] }
+    // - legacy [] (array directly)
+    // - stringified JSON
     const obj = (raw && typeof raw === "object") ? raw : {};
     const arr = Array.isArray(obj.items)
       ? obj.items
@@ -219,7 +279,8 @@
         return;
       }
 
-      cur.createdAt = Math.min(cur.createdAt || it.createdAt, it.createdAt);
+      // earliest createdAt wins, non-empty text wins
+      cur.createdAt = Math.min(cur.createdAt || it.createdAt || 0, it.createdAt || 0) || (cur.createdAt || it.createdAt || 0);
       cur.text = cur.text || it.text;
 
       const curDone = !!cur.completed;
@@ -227,9 +288,11 @@
 
       if (!curDone && itDone) {
         cur.completed = true;
-        cur.completedAt = it.completedAt || Date.now();
+        cur.completedAt = it.completedAt ?? null;
       }
-      if (curDone && !Number.isFinite(cur.completedAt) && Number.isFinite(it.completedAt)) {
+
+      // if either has a valid completedAt, keep it
+      if (cur.completed && !Number.isFinite(cur.completedAt) && Number.isFinite(it.completedAt)) {
         cur.completedAt = it.completedAt;
       }
     });
@@ -241,7 +304,7 @@
   /* ================= Midnight Rollover ===================== */
   /* ========================================================= */
   function isOverdue(item, nowTs) {
-    return !item.completed && item.createdAt < startOfDay(nowTs);
+    return !item.completed && (item.createdAt || 0) < startOfDay(nowTs);
   }
 
   function rollover(state, nowTs) {
@@ -250,8 +313,19 @@
 
     state.items = state.items.filter((it) => {
       if (!it.completed) return true;
-      if (!Number.isFinite(it.completedAt)) return true;
-      return it.completedAt >= sod;
+
+      // Effective completion time:
+      // - prefer completedAt if valid
+      // - else fall back to createdAt (useful when remote data omitted completedAt)
+      const eff = Number.isFinite(it.completedAt)
+        ? it.completedAt
+        : (Number.isFinite(it.createdAt) ? it.createdAt : NaN);
+
+      // If we still can't decide, keep it (better than deleting unexpectedly)
+      if (!Number.isFinite(eff)) return true;
+
+      // Clear anything completed before today's midnight
+      return eff >= sod;
     });
 
     prune(state);
@@ -397,7 +471,6 @@
         saveTimer = setTimeout(() => {
           saveTimer = null;
           prune(state);
-          // fire-and-forget, debounced. keeps Apps Script from crying.
           storeSave(store, STORAGE_KEY, state);
         }, 250);
       }
@@ -435,7 +508,7 @@
         }, msUntilNextMidnight(new Date()));
       }
 
-      /* Events */
+      // Events
       slot.addEventListener("click", (e) => {
         if (!ready) return;
 
@@ -531,9 +604,10 @@
         saveAndRender();
       });
 
-      /* Boot (async-safe) */
+      // Initial render so UI isn't blank
       render(slot, state);
 
+      // Boot (async-safe)
       (async () => {
         const rawV2 = await storeLoad(store, STORAGE_KEY);
         const hadExistingV2 = rawV2 != null;
@@ -545,8 +619,8 @@
         mutated = rollover(state, Date.now()) || mutated;
         prune(state);
 
-        // Critical: DON'T auto-save an empty state if we didn't actually load one.
-        // That’s how you wipe remote data during hydration.
+        // Key behavior: do NOT auto-save empty state when nothing actually loaded.
+        // That’s how remote data gets wiped during hydration or partial init.
         if (hadExistingV2 || mutated || state.items.length) {
           await storeSave(store, STORAGE_KEY, state);
         }
