@@ -1,26 +1,6 @@
 /* ========================================================= */
 /* ================= recentTasks.js (Widget) =============== */
 /* ========================================================= */
-/*
-  Purpose:
-    Quick "Recent tasks" scratchpad with midnight rollover.
-
-  Behavior:
-    - Pending tasks show a toggle switch.
-    - Completed tasks show the green "Complete" pill.
-    - At midnight (local time):
-        - Tasks completed before midnight are removed.
-        - Any still-pending tasks created before midnight become OVERDUE (flashing) until completed.
-
-  Storage:
-    STORAGE_KEY: portal_recent_tasks_v2
-    State: { items: [{ id, text, createdAt, completed, completedAt }], _migratedFromV1?: true }
-
-  Notes:
-    - Supports sync OR async Storage.load/save (Promises).
-    - Robust timestamp parsing for Google Sheets / Apps Script strings.
-    - Avoids overwriting remote state with empty state during first paint/hydration.
-*/
 
 (function () {
   "use strict";
@@ -33,9 +13,6 @@
   const LEGACY_KEY_V1 = "portal_recent_tasks_v1";
   const MAX_ITEMS = 60;
 
-  /* ========================================================= */
-  /* ======================= Utilities ======================= */
-  /* ========================================================= */
   function esc(s) {
     return String(s)
       .replaceAll("&", "&amp;")
@@ -61,7 +38,7 @@
 
   function msUntilNextMidnight(now = new Date()) {
     const next = new Date(now);
-    next.setHours(24, 0, 0, 50); // tiny buffer after midnight
+    next.setHours(24, 0, 0, 50);
     return Math.max(250, next.getTime() - now.getTime());
   }
 
@@ -132,13 +109,11 @@
       const s = v.trim();
       if (!s) return fallback;
 
-      // Numeric string
       if (/^-?\d+(\.\d+)?$/.test(s)) {
         const n = Number(s);
         return Number.isFinite(n) ? n : fallback;
       }
 
-      // ISO / locale date string
       const p = Date.parse(s);
       return Number.isNaN(p) ? fallback : p;
     }
@@ -146,9 +121,6 @@
     return fallback;
   }
 
-  /* ========================================================= */
-  /* =================== Storage Wrapper ===================== */
-  /* ========================================================= */
   function getFallbackStore() {
     return {
       load: function (key) {
@@ -180,28 +152,18 @@
       const r = store.save(key, val);
       if (isThenable(r)) await r;
     } catch {
-      // keep UI alive even if persistence is acting feral
+      // shrug
     }
   }
 
-  /* ========================================================= */
-  /* ================== State Normalization ================== */
-  /* ========================================================= */
   function normalizeItem(it) {
     if (it == null) return null;
 
-    // string-only legacy
     if (typeof it === "string") {
       const t = normalizeText(it);
       if (!t) return null;
       const now = Date.now();
-      return {
-        id: stableIdFrom(t, now),
-        text: t,
-        createdAt: now,
-        completed: false,
-        completedAt: null
-      };
+      return { id: stableIdFrom(t, now), text: t, createdAt: now, completed: false, completedAt: null };
     }
 
     if (typeof it !== "object") return null;
@@ -209,23 +171,15 @@
     const text = normalizeText(it.text ?? it.title ?? it.task ?? it.label ?? "");
     if (!text) return null;
 
-    const createdAtRaw =
-      it.createdAt ?? it.created ?? it.ts ?? it.timeCreated ?? it.created_on ?? it.createdOn ?? null;
-
-    const completedRaw =
-      it.completed ?? it.done ?? it.isComplete ?? it.complete ?? it.status ?? false;
-
-    const completedAtRaw =
-      it.completedAt ?? it.doneAt ?? it.timeCompleted ?? it.completed_on ?? it.completedOn ?? null;
+    const createdAtRaw = it.createdAt ?? it.created ?? it.ts ?? it.timeCreated ?? it.createdOn ?? null;
+    const completedRaw = it.completed ?? it.done ?? it.isComplete ?? it.complete ?? false;
+    const completedAtRaw = it.completedAt ?? it.doneAt ?? it.timeCompleted ?? it.completedOn ?? null;
 
     let createdAt = toMs(createdAtRaw, null);
     const completed = toBool(completedRaw);
     let completedAt = toMs(completedAtRaw, null);
 
-    // Prefer stability. If createdAt is missing/unparseable, use 0 (epoch) so it doesn't reshuffle as "now" every load.
     if (!Number.isFinite(createdAt)) createdAt = 0;
-
-    // If completed but timestamp missing, keep null (rollover will use createdAt as fallback when deciding what to clear).
     if (completed && !Number.isFinite(completedAt)) completedAt = null;
     if (!completed) completedAt = null;
 
@@ -233,39 +187,21 @@
       (it.id != null && String(it.id)) ||
       (createdAt > 0 ? stableIdFrom(text, createdAt) : stableIdFromTextOnly(text));
 
-    return {
-      id,
-      text,
-      createdAt,
-      completed,
-      completedAt
-    };
+    return { id, text, createdAt, completed, completedAt };
   }
 
   function normalizeState(raw) {
-    // Accept:
-    // - { items: [...] }
-    // - legacy [] (array directly)
-    // - stringified JSON
     const obj = (raw && typeof raw === "object") ? raw : {};
-    const arr = Array.isArray(obj.items)
-      ? obj.items
-      : (Array.isArray(raw) ? raw : []);
-
+    const arr = Array.isArray(obj.items) ? obj.items : (Array.isArray(raw) ? raw : []);
     const items = arr.map(normalizeItem).filter(Boolean);
 
-    return {
-      items,
-      _migratedFromV1: !!obj._migratedFromV1
-    };
+    return { items, _migratedFromV1: !!obj._migratedFromV1 };
   }
 
   function prune(state) {
     if (!state || !Array.isArray(state.items)) return;
     state.items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    if (state.items.length > MAX_ITEMS) {
-      state.items = state.items.slice(0, MAX_ITEMS);
-    }
+    if (state.items.length > MAX_ITEMS) state.items = state.items.slice(0, MAX_ITEMS);
   }
 
   function mergeItems(dst, src) {
@@ -274,24 +210,15 @@
 
     src.forEach(it => {
       const cur = map.get(it.id);
-      if (!cur) {
-        map.set(it.id, it);
-        return;
-      }
+      if (!cur) return void map.set(it.id, it);
 
-      // earliest createdAt wins, non-empty text wins
       cur.createdAt = Math.min(cur.createdAt || it.createdAt || 0, it.createdAt || 0) || (cur.createdAt || it.createdAt || 0);
       cur.text = cur.text || it.text;
 
-      const curDone = !!cur.completed;
-      const itDone = !!it.completed;
-
-      if (!curDone && itDone) {
+      if (!cur.completed && it.completed) {
         cur.completed = true;
         cur.completedAt = it.completedAt ?? null;
       }
-
-      // if either has a valid completedAt, keep it
       if (cur.completed && !Number.isFinite(cur.completedAt) && Number.isFinite(it.completedAt)) {
         cur.completedAt = it.completedAt;
       }
@@ -300,9 +227,6 @@
     return Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }
 
-  /* ========================================================= */
-  /* ================= Midnight Rollover ===================== */
-  /* ========================================================= */
   function isOverdue(item, nowTs) {
     return !item.completed && (item.createdAt || 0) < startOfDay(nowTs);
   }
@@ -314,17 +238,11 @@
     state.items = state.items.filter((it) => {
       if (!it.completed) return true;
 
-      // Effective completion time:
-      // - prefer completedAt if valid
-      // - else fall back to createdAt (useful when remote data omitted completedAt)
       const eff = Number.isFinite(it.completedAt)
         ? it.completedAt
         : (Number.isFinite(it.createdAt) ? it.createdAt : NaN);
 
-      // If we still can't decide, keep it (better than deleting unexpectedly)
       if (!Number.isFinite(eff)) return true;
-
-      // Clear anything completed before today's midnight
       return eff >= sod;
     });
 
@@ -332,9 +250,6 @@
     return state.items.length !== before;
   }
 
-  /* ========================================================= */
-  /* ====================== Migration ======================== */
-  /* ========================================================= */
   async function loadLegacyV1(store) {
     const fromStore = await storeLoad(store, LEGACY_KEY_V1);
     if (fromStore) return fromStore;
@@ -355,18 +270,13 @@
     }
 
     const legacyState = normalizeState(legacyRaw);
-    if (legacyState.items.length) {
-      state.items = mergeItems(state.items, legacyState.items);
-    }
+    if (legacyState.items.length) state.items = mergeItems(state.items, legacyState.items);
 
     state._migratedFromV1 = true;
     prune(state);
     return true;
   }
 
-  /* ========================================================= */
-  /* =================== Render / Template =================== */
-  /* ========================================================= */
   function buildHTML(state, now) {
     const nowTs = now.getTime();
 
@@ -447,9 +357,6 @@
     slot.innerHTML = buildHTML(state, new Date());
   }
 
-  /* ========================================================= */
-  /* =========================== Init ======================== */
-  /* ========================================================= */
   window.PortalWidgets.RecentTasks = {
     init: function (slotId) {
       const slot = document.getElementById(slotId);
@@ -508,7 +415,6 @@
         }, msUntilNextMidnight(new Date()));
       }
 
-      // Events
       slot.addEventListener("click", (e) => {
         if (!ready) return;
 
@@ -523,15 +429,8 @@
 
         const action = btn.dataset.action;
 
-        if (action === "open-add") {
-          openModal();
-          return;
-        }
-
-        if (action === "close-modal") {
-          closeModal();
-          return;
-        }
+        if (action === "open-add") return void openModal();
+        if (action === "close-modal") return void closeModal();
 
         if (action === "add-task") {
           const input = slot.querySelector('[data-role="rt-input"]');
@@ -540,14 +439,7 @@
           const text = normalizeText(input.value);
           if (!text) return;
 
-          state.items.unshift({
-            id: uid(),
-            text,
-            createdAt: Date.now(),
-            completed: false,
-            completedAt: null
-          });
-
+          state.items.unshift({ id: uid(), text, createdAt: Date.now(), completed: false, completedAt: null });
           closeModal();
           saveAndRender();
         }
@@ -572,14 +464,7 @@
           const text = normalizeText(input.value);
           if (!text) return;
 
-          state.items.unshift({
-            id: uid(),
-            text,
-            createdAt: Date.now(),
-            completed: false,
-            completedAt: null
-          });
-
+          state.items.unshift({ id: uid(), text, createdAt: Date.now(), completed: false, completedAt: null });
           e.preventDefault();
           closeModal();
           saveAndRender();
@@ -600,14 +485,11 @@
 
         hit.completed = !!input.checked;
         hit.completedAt = hit.completed ? Date.now() : null;
-
         saveAndRender();
       });
 
-      // Initial render so UI isn't blank
       render(slot, state);
 
-      // Boot (async-safe)
       (async () => {
         const rawV2 = await storeLoad(store, STORAGE_KEY);
         const hadExistingV2 = rawV2 != null;
@@ -619,8 +501,7 @@
         mutated = rollover(state, Date.now()) || mutated;
         prune(state);
 
-        // Key behavior: do NOT auto-save empty state when nothing actually loaded.
-        // That’s how remote data gets wiped during hydration or partial init.
+        // don’t write empty state unless it actually existed or changed
         if (hadExistingV2 || mutated || state.items.length) {
           await storeSave(store, STORAGE_KEY, state);
         }
