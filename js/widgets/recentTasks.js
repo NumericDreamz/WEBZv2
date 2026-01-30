@@ -12,9 +12,14 @@
         - Tasks completed before midnight are removed.
         - Any still-pending tasks become OVERDUE (angry flashing) until completed.
 
+  Migration:
+    - Pulls legacy state from: portal_recent_tasks_v1
+    - Writes normalized state into: portal_recent_tasks_v2
+    - Runs once (tracked in state._migratedFromV1)
+
   Storage:
     STORAGE_KEY: portal_recent_tasks_v2
-    State: { items: [{ id, text, createdAt, completed, completedAt }] }
+    State: { items: [{ id, text, createdAt, completed, completedAt }], _migratedFromV1?: true }
 
   External deps:
     window.PortalApp.Storage (load/save) if available
@@ -29,6 +34,8 @@
   window.PortalWidgets = window.PortalWidgets || {};
 
   const STORAGE_KEY = "portal_recent_tasks_v2";
+  const LEGACY_KEY_V1 = "portal_recent_tasks_v1";
+
   const MAX_ITEMS = 60;
 
   /* ========================================================= */
@@ -47,6 +54,10 @@
     return esc(String(s)).replaceAll("`", "&#096;");
   }
 
+  function normalizeText(raw) {
+    return String(raw || "").trim().replace(/\s+/g, " ");
+  }
+
   function startOfDay(ts = Date.now()) {
     const d = new Date(ts);
     d.setHours(0, 0, 0, 0);
@@ -55,17 +66,28 @@
 
   function msUntilNextMidnight(now = new Date()) {
     const next = new Date(now);
-    next.setHours(24, 0, 0, 50); // tiny buffer after midnight
+    next.setHours(24, 0, 0, 50); // small buffer after midnight
     return Math.max(250, next.getTime() - now.getTime());
   }
 
   function uid() {
-    // Good enough for a tiny widget. We're not launching rockets.
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
 
-  function normalizeName(raw) {
-    return String(raw || "").trim().replace(/\s+/g, " ");
+  function hash36(str) {
+    // small deterministic hash, good enough for stable IDs
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      h = ((h << 5) - h) + str.charCodeAt(i);
+      h |= 0;
+    }
+    return Math.abs(h).toString(36);
+  }
+
+  function stableIdFrom(text, createdAt) {
+    const t = normalizeText(text).toLowerCase();
+    const c = Number(createdAt) || 0;
+    return `legacy_${hash36(t)}_${Math.floor(c / 1000)}`;
   }
 
   /* ========================================================= */
@@ -87,15 +109,38 @@
     return window.PortalApp?.Storage || getFallbackStore();
   }
 
+  function safeParse(raw) {
+    try {
+      const v = JSON.parse(raw);
+      return (v && typeof v === "object") ? v : null;
+    } catch {
+      return null;
+    }
+  }
+
   /* ========================================================= */
   /* ================== State Normalization ================== */
   /* ========================================================= */
   function normalizeItem(it) {
-    if (!it || typeof it !== "object") return null;
+    // Accept many legacy shapes (objects, strings, etc.)
+    if (it == null) return null;
 
-    const text =
-      normalizeName(it.text ?? it.title ?? it.task ?? it.label ?? "");
+    if (typeof it === "string") {
+      const t = normalizeText(it);
+      if (!t) return null;
+      const now = Date.now();
+      return {
+        id: stableIdFrom(t, now),
+        text: t,
+        createdAt: now,
+        completed: false,
+        completedAt: null
+      };
+    }
 
+    if (typeof it !== "object") return null;
+
+    const text = normalizeText(it.text ?? it.title ?? it.task ?? it.label ?? "");
     if (!text) return null;
 
     const createdAt = Number(it.createdAt ?? it.created ?? it.ts ?? Date.now());
@@ -104,10 +149,13 @@
     let completedAt = it.completedAt ?? it.doneAt ?? null;
     completedAt = (completedAt == null) ? null : Number(completedAt);
 
+    const ca = Number.isFinite(createdAt) ? createdAt : Date.now();
+    const id = String(it.id ?? stableIdFrom(text, ca) ?? uid());
+
     return {
-      id: String(it.id ?? uid()),
+      id,
       text,
-      createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
+      createdAt: ca,
       completed,
       completedAt: completed
         ? (Number.isFinite(completedAt) ? completedAt : Date.now())
@@ -116,24 +164,60 @@
   }
 
   function normalizeState(raw) {
-    // Accept {items:[]} or legacy [] formats
+    // Accept:
+    // - { items: [...] }
+    // - legacy [] (array directly)
+    // - garbage -> empty
     const obj = (raw && typeof raw === "object") ? raw : {};
     const arr = Array.isArray(obj.items)
       ? obj.items
       : (Array.isArray(raw) ? raw : []);
 
-    const items = arr
-      .map(normalizeItem)
-      .filter(Boolean);
+    const items = arr.map(normalizeItem).filter(Boolean);
 
-    return { items };
+    return {
+      items,
+      _migratedFromV1: !!obj._migratedFromV1
+    };
   }
 
   function prune(state) {
     if (!state || !Array.isArray(state.items)) return;
     if (state.items.length > MAX_ITEMS) {
-      state.items = state.items.slice(state.items.length - MAX_ITEMS);
+      state.items = state.items.slice(0, MAX_ITEMS); // newest first
     }
+  }
+
+  function mergeItems(dst, src) {
+    // Dedupe by id, prefer "more complete" record
+    const map = new Map();
+    dst.forEach(it => map.set(it.id, it));
+
+    src.forEach(it => {
+      const cur = map.get(it.id);
+      if (!cur) {
+        map.set(it.id, it);
+        return;
+      }
+
+      // Merge: keep earliest createdAt, and keep completion if either is completed
+      cur.createdAt = Math.min(cur.createdAt || it.createdAt, it.createdAt);
+      cur.text = cur.text || it.text;
+
+      const curDone = !!cur.completed;
+      const itDone = !!it.completed;
+
+      if (!curDone && itDone) {
+        cur.completed = true;
+        cur.completedAt = it.completedAt || Date.now();
+      }
+      if (curDone && !Number.isFinite(cur.completedAt) && Number.isFinite(it.completedAt)) {
+        cur.completedAt = it.completedAt;
+      }
+    });
+
+    // Return newest-first list
+    return Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }
 
   /* ========================================================= */
@@ -155,8 +239,45 @@
       return it.completedAt >= sod;
     });
 
+    // Keep ordering newest-first
+    state.items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
     prune(state);
     return state.items.length !== before;
+  }
+
+  /* ========================================================= */
+  /* ====================== Migration ======================== */
+  /* ========================================================= */
+  function loadLegacyV1(store) {
+    // Try store.load first (in case it exists in master), then raw localStorage.
+    const fromStore = store.load(LEGACY_KEY_V1);
+    if (fromStore) return fromStore;
+
+    const raw = localStorage.getItem(LEGACY_KEY_V1);
+    if (!raw) return null;
+
+    return safeParse(raw);
+  }
+
+  function migrateIfNeeded(store, state) {
+    if (state._migratedFromV1) return false;
+
+    const legacyRaw = loadLegacyV1(store);
+    if (!legacyRaw) {
+      state._migratedFromV1 = true;
+      return true;
+    }
+
+    const legacyState = normalizeState(legacyRaw);
+
+    if (legacyState.items.length) {
+      state.items = mergeItems(state.items, legacyState.items);
+    }
+
+    state._migratedFromV1 = true;
+    prune(state);
+    return true;
   }
 
   /* ========================================================= */
@@ -167,7 +288,7 @@
 
     const rows = state.items
       .slice()
-      .sort((a, b) => a.createdAt - b.createdAt)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) // newest first
       .map((it) => {
         const overdue = isOverdue(it, nowTs);
         const rowCls = `toggle-row rt-row${overdue ? " rt-overdue" : ""}`;
@@ -221,7 +342,7 @@
         </div>
 
         <!-- Modal -->
-        <div class="rt-modal-backdrop" data-role="rt-modal">
+        <div class="rt-modal-backdrop" data-role="rt-modal" aria-hidden="true">
           <div class="rt-modal" role="dialog" aria-modal="true" aria-label="Add task">
             <div class="rt-modal-head">
               <div class="rt-modal-title">Add a task</div>
@@ -258,8 +379,17 @@
 
       const store = getStore();
 
+      // Load v2 state
       let state = normalizeState(store.load(STORAGE_KEY));
+
+      // Migrate from v1 once
+      const didMigrate = migrateIfNeeded(store, state);
+
+      // Apply rollover rules immediately
       rollover(state, Date.now());
+
+      // Save v2
+      prune(state);
       store.save(STORAGE_KEY, state);
 
       render(slot, state);
@@ -277,6 +407,7 @@
         const input = slot.querySelector('[data-role="rt-input"]');
         if (!modal || !input) return;
         modal.classList.add("rt-open");
+        modal.setAttribute("aria-hidden", "false");
         input.value = "";
         setTimeout(() => input.focus(), 0);
       }
@@ -285,6 +416,7 @@
         const modal = slot.querySelector('[data-role="rt-modal"]');
         if (!modal) return;
         modal.classList.remove("rt-open");
+        modal.setAttribute("aria-hidden", "true");
       }
 
       function scheduleMidnightTick() {
@@ -299,15 +431,21 @@
 
       scheduleMidnightTick();
 
-      // Clicks (add/open/close/modal)
+      /* ========================================================= */
+      /* ======================= Events ========================== */
+      /* ========================================================= */
+
+      // Clicks (add/open/close/modal + backdrop)
       slot.addEventListener("click", (e) => {
-        const btn = e.target.closest("button");
-        if (!btn) {
-          // Click backdrop to close
-          const backdrop = e.target.closest(".rt-modal-backdrop");
-          if (backdrop && backdrop.classList.contains("rt-open")) closeModal();
+        // Backdrop click closes only if you clicked the backdrop itself
+        const backdrop = slot.querySelector('[data-role="rt-modal"]');
+        if (backdrop && e.target === backdrop && backdrop.classList.contains("rt-open")) {
+          closeModal();
           return;
         }
+
+        const btn = e.target.closest("button");
+        if (!btn) return;
 
         const action = btn.dataset.action;
 
@@ -325,10 +463,10 @@
           const input = slot.querySelector('[data-role="rt-input"]');
           if (!input) return;
 
-          const text = normalizeName(input.value);
+          const text = normalizeText(input.value);
           if (!text) return;
 
-          state.items.push({
+          state.items.unshift({
             id: uid(),
             text,
             createdAt: Date.now(),
@@ -344,8 +482,8 @@
 
       // Enter/Escape in modal input
       slot.addEventListener("keydown", (e) => {
-        const modal = slot.querySelector('[data-role="rt-modal"]');
-        if (!modal || !modal.classList.contains("rt-open")) return;
+        const backdrop = slot.querySelector('[data-role="rt-modal"]');
+        if (!backdrop || !backdrop.classList.contains("rt-open")) return;
 
         if (e.key === "Escape") {
           e.preventDefault();
@@ -357,10 +495,10 @@
           const input = slot.querySelector('[data-role="rt-input"]');
           if (!input) return;
 
-          const text = normalizeName(input.value);
+          const text = normalizeText(input.value);
           if (!text) return;
 
-          state.items.push({
+          state.items.unshift({
             id: uid(),
             text,
             createdAt: Date.now(),
