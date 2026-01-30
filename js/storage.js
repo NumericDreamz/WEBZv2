@@ -1,12 +1,13 @@
 window.PortalApp = window.PortalApp || {};
 
 PortalApp.Storage = (function () {
-  const MASTER_KEY = "ats_portal_state_v1";
+  "use strict";
 
-  // Compatibility key: your earlier console scripts + some persistence setups used this
+  console.log("[Portal] storage.js build 2026-01-30_01");
+
+  const MASTER_KEY = "ats_portal_state_v1";
   const REMOTE_CACHE_KEY = "portal_state_cache_v1";
 
-  // Debounce remote writes so we don't hammer Apps Script
   const PUSH_DEBOUNCE_MS = 700;
   let pushTimer = null;
 
@@ -29,15 +30,16 @@ PortalApp.Storage = (function () {
     const raw = localStorage.getItem(MASTER_KEY);
     const master = raw ? safeParse(raw) : {};
 
-    // Migrate legacy keys into master once (so backup captures everything)
+    // Migrate legacy portal_* keys into master (one-time-ish)
     let changed = false;
 
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (!k || k === MASTER_KEY) continue;
+      if (!k) continue;
+      if (k === MASTER_KEY || k === REMOTE_CACHE_KEY) continue;
 
       const looksLikeOurs =
-        k.startsWith("portal_metrics_") ||
+        k.startsWith("portal_") ||
         k.startsWith("metrics_") ||
         k.includes("_metrics_");
 
@@ -67,21 +69,17 @@ PortalApp.Storage = (function () {
       return { ok: false, reason: "PortalApp.Persistence.setState missing" };
     }
 
-    // mirror first in case persistence.js reads REMOTE_CACHE_KEY internally
     mirrorRemoteCache(master);
 
-    try {
-      const res = await p.setState(master);
-      return res || { ok: true };
-    } catch (e) {
-      console.warn("[Portal] Remote push failed:", e);
-      return { ok: false, reason: "push_failed", error: String(e) };
-    }
+    const res = await p.setState(master);
+    return res || { ok: true };
   }
 
   function schedulePush(master) {
     if (pushTimer) clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => { pushNow(master); }, PUSH_DEBOUNCE_MS);
+    pushTimer = setTimeout(() => {
+      pushNow(master).catch((e) => console.warn("[Portal] Remote push failed:", e));
+    }, PUSH_DEBOUNCE_MS);
   }
 
   async function pullNow() {
@@ -90,29 +88,28 @@ PortalApp.Storage = (function () {
       return { ok: false, reason: "PortalApp.Persistence.getState missing" };
     }
 
-    try {
-      const remote = await p.getState();
-      if (!remote || typeof remote !== "object") return { ok: true, state: null };
+    const res = await p.getState();
 
-      writeMaster(remote);
-      return { ok: true, state: remote };
-    } catch (e) {
-      console.warn("[Portal] Remote pull failed:", e);
-      return { ok: false, reason: "pull_failed", error: String(e) };
+    if (res && res.ok && res.state && typeof res.state === "object") {
+      writeMaster(res.state);
+      return { ok: true, state: res.state };
     }
+
+    // Remote empty or failed; do not overwrite local
+    if (res && res.ok && !res.state) return { ok: true, state: null };
+
+    return { ok: false, reason: "pull_failed", error: res?.error || "unknown" };
   }
 
   function load(key) {
     const master = readMaster();
-    return master[key] ?? {};
+    return (Object.prototype.hasOwnProperty.call(master, key)) ? master[key] : null;
   }
 
   function save(key, val) {
     const master = readMaster();
     master[key] = val;
     writeMaster(master);
-
-    // Auto-push on every change
     schedulePush(master);
   }
 
@@ -128,11 +125,10 @@ PortalApp.Storage = (function () {
     schedulePush(obj);
   }
 
-  // app.js calls this
   async function init() {
     const pulled = await pullNow();
 
-    // If remote is empty but local has state, push local up for first-time setup
+    // If remote is empty but local has state, push local up (first-time setup)
     if (pulled?.ok && !pulled?.state) {
       const local = readMaster();
       if (Object.keys(local).length) await pushNow(local);
