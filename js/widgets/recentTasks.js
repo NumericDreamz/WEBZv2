@@ -332,7 +332,6 @@
         <div class="widget-head recent-header">
           <h2>Recent</h2>
           <div class="rt-head-right">
-            <div class="daily-progress">Clears @ midnight</div>
             <button class="btn" type="button" data-action="open-add" aria-label="Add task">+</button>
           </div>
         </div>
@@ -531,3 +530,4 @@
     }
   };
 })();
+
