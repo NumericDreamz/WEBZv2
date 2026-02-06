@@ -26,7 +26,7 @@
         metrics: [
           { id: "loto_obs", label: "LOTO Observations", target: 4 },
           { id: "care_convos", label: "Care Conversations", target: 5 },
-          { id: "recognition", type: "recognition", label: "Recognition", allotment: 140 }
+          { id: "recognition", type: "recognition", label: "Recognition", allotment: 150 }
         ]
       });
 
