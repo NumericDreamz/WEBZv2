@@ -391,4 +391,13 @@
         state = normalizeState(raw);
         prune(state);
 
-        if (hadExisting
+        if (hadExisting || state.items.length) {
+          await storeSave(store, STORAGE_KEY, state);
+        }
+
+        render(slot, state);
+        ready = true;
+      })();
+    }
+  };
+})();
