@@ -872,6 +872,27 @@ body{
   background: #ffd1d1;
 }
 
+/* ================================================================== */
+/* Weekly Payroll: overdue should flash just like weekly overdue rows */
+/* ================================================================== */
+
+.payroll-row.payroll-overdue {
+  border-color: #ff3b3b;
+  box-shadow: 0 0 0 2px rgba(255, 59, 59, .28) inset,
+              0 0 18px rgba(255, 0, 0, .18);
+  animation: weeklyRage 0.65s infinite;
+}
+
+.payroll-row.payroll-overdue .slider {
+  background: #5a0000;
+  border-color: #ff3b3b;
+}
+
+.payroll-row.payroll-overdue .slider:before {
+  background: #ffd1d1;
+}
+
+
 /* ========================================================= */
 /* ================= Monthly: Recognition ================== */
 /* ========================================================= */
@@ -990,6 +1011,7 @@ body{
 .metrics-card .toggle-row + .metric-row{
   margin-top: var(--rowGap, 12px);
 }
+
 
 
 
