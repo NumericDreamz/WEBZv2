@@ -46,8 +46,11 @@
   function getFallbackStore() {
     return {
       load(key) {
-        try { return JSON.parse(localStorage.getItem(key) || "null"); }
-        catch { return null; }
+        try {
+          return JSON.parse(localStorage.getItem(key) || "null");
+        } catch {
+          return null;
+        }
       },
       save(key, val) {
         localStorage.setItem(key, JSON.stringify(val || {}));
@@ -59,9 +62,8 @@
     return window.PortalApp?.Storage || getFallbackStore();
   }
 
-  // Find the Wednesday that is the start of the current payroll cycle
+  // JS: 0=Sun,1=Mon,2=Tue,3=Wed...
   function getCycleStartWednesday(now = new Date()) {
-    // JS: 0=Sun,1=Mon,2=Tue,3=Wed...
     const d = new Date(now);
     d.setHours(0, 0, 0, 0);
     const day = d.getDay();
@@ -70,7 +72,7 @@
     return d;
   }
 
-  // Correct HTML esc
+  // Proper HTML escape for plain text
   function esc(s) {
     return String(s)
       .replaceAll("&", "&amp;")
@@ -85,7 +87,8 @@
     const css = `
       .payroll-row-wrap { margin-top: 10px; }
       .payroll-collapsed { opacity: 0.95; }
-      /* Make overdue payroll match the aggressive weekly overdue look */
+
+      /* Overdue payroll: match aggressive weekly overdue look */
       .payroll-row.payroll-overdue {
         border-color: #ff3b3b;
         box-shadow: 0 0 0 2px rgba(255, 59, 59, .28) inset,
@@ -110,7 +113,6 @@
     const nowTs = now.getTime();
     const cycleStart = getCycleStartWednesday(now);
     const cycleKey = ymd(cycleStart);
-    const wedStart = cycleStart.getTime();
 
     // Reset for a new cycle
     if (!state || typeof state !== "object") state = {};
@@ -123,11 +125,6 @@
     const completed = !!state.completed;
     const completedAt = Number(state.completedAt || 0) || null;
 
-    // Hide before Wednesday
-    if (nowTs < wedStart) {
-      return { html: "", visible: false };
-    }
-
     // If completed, only show the green collapsed row on the completion day.
     // After midnight rolls, it vanishes until next cycle.
     if (completed && completedAt && startOfDay(completedAt) < startOfDay(nowTs)) {
@@ -135,12 +132,15 @@
     }
 
     // Overdue if it's after Wednesday ends (Thu 00:00+) and not completed
-    const overdue = !completed && (nowTs >= (wedStart + 24 * 60 * 60 * 1000)); // Thu 00:00+
+    const overdue = !completed && (nowTs >= (cycleStart.getTime() + 24 * 60 * 60 * 1000)); // Thu 00:00+
 
-    const rowCls =
-      `toggle-row rt-row payroll-row` +
-      (overdue ? " rt-overdue payroll-overdue" : "") +
-      (completed ? " payroll-collapsed" : "");
+    const rowCls = [
+      "toggle-row",
+      "rt-row",
+      "payroll-row",
+      overdue ? "rt-overdue payroll-overdue" : "",
+      completed ? "payroll-collapsed" : ""
+    ].filter(Boolean).join(" ");
 
     const right = completed
       ? `
@@ -212,14 +212,14 @@
       function render() {
         host = pickInsertionHost(slot);
 
-        // remove previous
+        // Remove previous
         const prev = slot.querySelector('[data-role="payroll-wrap"]');
         if (prev) prev.remove();
 
         const now = new Date();
         const built = buildRowHTML(state, now);
 
-        // If not visible (completed + after midnight, or before Wed), do nothing.
+        // If not visible (completed + after midnight), do nothing.
         if (!built.visible) {
           save();
           return;
