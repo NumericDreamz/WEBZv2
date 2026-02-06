@@ -223,44 +223,48 @@
         continue;
       }
 
-      /* ========================================================= */
-      /* ================= Simple toggle metrics ================= */
-      /* ========================================================= */
-      const isToggleMetric = (id === "efs" || id === "pulse_surv");
-      if (isToggleMetric) {
-        const rawVal = getVal(state, key, id);
-        const done = !!rawVal;
-        const label = esc(shortNameForMetricId(id, m.label));
+     
+/* ========================================================= */
+/* ================= Simple toggle metrics ================== */
+/* ========================================================= */
+const isToggleMetric = (id === "efs" || id === "pulse_surv");
+if (isToggleMetric) {
+  const rawVal = getVal(state, key, id);
+  const done = !!rawVal;
+  const label = esc(shortNameForMetricId(id, m.label));
 
-        const right = done
-          ? `
-            <div class="status-pill status-good" aria-live="polite">
-              <span class="status-dot"></span>
-              <span class="status-text">Complete</span>
-            </div>
-          `
-          : `
-            <label class="switch" aria-label="Mark complete: ${label}">
-              <input type="checkbox"
-                     data-action="toggle-metric"
-                     data-metric-id="${esc(id)}">
-              <span class="slider"></span>
-            </label>
-          `;
+  const right = done
+    ? `
+      <div class="status-pill status-good" aria-live="polite">
+        <span class="status-dot"></span>
+        <span class="status-text">Complete</span>
+      </div>
+    `
+    : `
+      <label class="switch" aria-label="Mark complete: ${label}">
+        <input type="checkbox" data-action="toggle-metric" data-metric-id="${esc(id)}">
+        <span class="slider"></span>
+      </label>
+    `;
 
-        htmlParts.push(`
-          <div class="metric-row metric-toggle"
-               data-metric-id="${esc(id)}">
-            <div class="metric-left">
-              <div class="metric-title">${label}</div>
-            </div>
-            <div class="metric-right">
-              ${right}
-            </div>
-          </div>
-        `);
-        continue;
-      }
+  htmlParts.push(`
+    <div class="metric-row metric-toggle"
+         data-metric-id="${esc(id)}">
+
+      <div class="metric-top">
+        <div class="metric-left">
+          <div class="metric-title">${label}</div>
+        </div>
+
+        <div class="metric-right">
+          ${right}
+        </div>
+      </div>
+
+    </div>
+  `);
+  continue;
+}
 
       /* ========================================================= */
       /* ============== Standard counter metrics ================= */
@@ -444,3 +448,4 @@
   };
 
 })();
+
