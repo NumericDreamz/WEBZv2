@@ -267,76 +267,101 @@
   /* ========================================================= */
   /* =========================== Init ======================== */
   /* ========================================================= */
-  window.PortalWidgets.Monthly = {
-    init: function (slotId, cfg) {
-      const host = document.getElementById(slotId);
-      if (!host) return;
+ 
+window.PortalWidgets.Monthly = {
+  init: function (slotId, cfg) {
+    const host = document.getElementById(slotId);
+    if (!host) return;
 
-      const store = getStore();
-      const config = cfg || {};
+    const store = getStore();
+    const config = cfg || {};
 
-      let state = store.load(STORAGE_KEY);
-      if (!state || typeof state !== "object") state = {};
+    // --- Inject EFS + Pulse as standard counters at the top, if not already provided ---
+    const baseMetrics = Array.isArray(config.metrics) ? config.metrics.slice() : [];
+    const existingIds = new Set(baseMetrics.map(m => m && m.id));
 
-      pruneOldMonths(state);
-      ensureMonth(state, monthKey(new Date()));
-      store.save(STORAGE_KEY, state);
+    const extraMetrics = [];
 
-      render(host, config, state, new Date());
+    // Eyes For Safety – monthly counter, collapses when >= target (like LOTO)
+    if (!existingIds.has("efs")) {
+      extraMetrics.push({
+        id: "efs",
+        label: "Eyes For Safety",
+        target: 1   // treat as 1 per month; change if you want more
+      });
+    }
 
-      // One event handler for the whole card
-      host.addEventListener("click", (e) => {
-        const btn = e.target.closest("button");
-        if (!btn) return;
+    // Pulse Survey – monthly counter, collapses when >= target
+    if (!existingIds.has("pulse_surv")) {
+      extraMetrics.push({
+        id: "pulse_surv",
+        label: "Pulse Survey",
+        target: 1   // treat as 1 per month; change if you want more
+      });
+    }
 
-        const now = new Date();
-        const key = monthKey(now);
+    // Final metrics array: [EFS, Pulse, ...existing from app.js]
+    config.metrics = extraMetrics.concat(baseMetrics);
 
-        const row = e.target.closest(".metric-row");
-        if (!row) return;
+    let state = store.load(STORAGE_KEY);
+    if (!state || typeof state !== "object") state = {};
 
-        const metricId = row.dataset.metricId;
-        if (!metricId) return;
+    pruneOldMonths(state);
+    ensureMonth(state, monthKey(new Date()));
 
-        // Recognition edit (only exists in expanded view)
-        if (btn.dataset.action === "recog-edit") {
-          const allot = Number(row.dataset.allotment || 0) || 0;
-          const current = getVal(state, key, metricId);
+    store.save(STORAGE_KEY, state);
 
-          const raw = prompt(`Add Recognition points (remaining ${Math.max(0, allot - current)}):`, "10");
-          if (raw === null) return;
+    render(host, config, state, new Date());
 
-          const add = Number(String(raw).trim());
-          if (!Number.isFinite(add)) return;
+    // One event handler for the whole card
+    host.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
 
-          const next = clamp(current + Math.round(add), 0, allot);
-          setVal(state, key, metricId, next);
+      const now = new Date();
+      const key = monthKey(now);
+      const row = e.target.closest(".metric-row");
+      if (!row) return;
 
-          pruneOldMonths(state);
-          store.save(STORAGE_KEY, state);
-          render(host, config, state, new Date());
-          return;
-        }
+      const metricId = row.dataset.metricId;
+      if (!metricId) return;
 
-        // Standard counter inc/dec
-        const action = btn.dataset.action;
-        if (!action) return;
-
-        ensureMonth(state, key);
-
+      // Recognition edit (only exists in expanded view)
+      if (btn.dataset.action === "recog-edit") {
+        const allot = Number(row.dataset.allotment || 0) || 0;
         const current = getVal(state, key, metricId);
-        let next = current;
+        const raw = prompt(
+          `Add Recognition points (remaining ${Math.max(0, allot - current)}):`,
+          "10"
+        );
+        if (raw === null) return;
 
-        if (action === "inc") next = current + 1;
-        if (action === "dec") next = Math.max(0, current - 1);
+        const add = Number(String(raw).trim());
+        if (!Number.isFinite(add)) return;
 
+        const next = clamp(current + Math.round(add), 0, allot);
         setVal(state, key, metricId, next);
-
         pruneOldMonths(state);
         store.save(STORAGE_KEY, state);
         render(host, config, state, new Date());
-      });
-    }
-  };
-})();
+        return;
+      }
 
+      // Standard counter inc/dec
+      const action = btn.dataset.action;
+      if (!action) return;
+
+      ensureMonth(state, key);
+      const current = getVal(state, key, metricId);
+      let next = current;
+
+      if (action === "inc") next = current + 1;
+      if (action === "dec") next = Math.max(0, current - 1);
+
+      setVal(state, key, metricId, next);
+      pruneOldMonths(state);
+      store.save(STORAGE_KEY, state);
+      render(host, config, state, new Date());
+    });
+  }
+};
