@@ -1,3 +1,4 @@
+
 /* ========================================================= */
 /* ===================== monthly.js (Widget) ================= */
 /* ========================================================= */
@@ -28,9 +29,6 @@
     window.PortalApp.Storage (load/save) if available
 */
 
-/* ========================================================= */
-/* ================= Config / Globals ====================== */
-/* ========================================================= */
 (function () {
   "use strict";
 
@@ -83,8 +81,11 @@
   function getFallbackStore() {
     return {
       load: function (key) {
-        try { return JSON.parse(localStorage.getItem(key) || "{}"); }
-        catch { return {}; }
+        try {
+          return JSON.parse(localStorage.getItem(key) || "{}");
+        } catch {
+          return {};
+        }
       },
       save: function (key, val) {
         localStorage.setItem(key, JSON.stringify(val || {}));
@@ -99,11 +100,15 @@
   function pruneOldMonths(state, keep = 12) {
     if (!state || typeof state !== "object") return;
     const keys = Object.keys(state).sort(); // YYYY-MM sorts correctly
-    while (keys.length > keep) delete state[keys.shift()];
+    while (keys.length > keep) {
+      delete state[keys.shift()];
+    }
   }
 
   function ensureMonth(state, key) {
-    if (!state[key]) state[key] = {};
+    if (!state[key] || typeof state[key] !== "object") {
+      state[key] = {};
+    }
     return state[key];
   }
 
@@ -169,7 +174,9 @@
         // COLLAPSED WHEN COMPLETE
         if (done) {
           htmlParts.push(`
-            <div class="metric-row recognition recog-collapsed" data-metric-id="${esc(id)}" data-allotment="${esc(allot)}">
+            <div class="metric-row recognition recog-collapsed"
+                 data-metric-id="${esc(id)}"
+                 data-allotment="${esc(allot)}">
               <div class="metric-left">
                 <div class="metric-title">${label}</div>
               </div>
@@ -185,12 +192,19 @@
 
         // EXPANDED WHEN NOT COMPLETE
         htmlParts.push(`
-          <div class="metric-row recognition" data-metric-id="${esc(id)}" data-allotment="${esc(allot)}">
+          <div class="metric-row recognition"
+               data-metric-id="${esc(id)}"
+               data-allotment="${esc(allot)}">
             <div class="recog-head">
               <div class="recog-title">${label}</div>
               <div class="recog-right">
-                <div class="recog-points"><span data-role="recog-used">${used}</span>/${allot}</div>
-                <button class="btn" type="button" data-action="recog-edit" aria-label="Update Recognition points">+</button>
+                <div class="recog-points">
+                  <span data-role="recog-used">${used}</span>/${allot}
+                </div>
+                <button class="btn"
+                        type="button"
+                        data-action="recog-edit"
+                        aria-label="Update Recognition points">+</button>
               </div>
             </div>
 
@@ -200,7 +214,9 @@
               <div class="bar-track points">
                 <div class="bar-fill points" style="width:${pctUsed}%;"></div>
               </div>
-              <div class="bar-pct"><span data-role="recog-pct">${pctUsed}</span>%</div>
+              <div class="bar-pct">
+                <span data-role="recog-pct">${pctUsed}</span>%
+              </div>
             </div>
           </div>
         `);
@@ -217,12 +233,18 @@
 
       const shortLabel = esc(shortNameForMetricId(id, m.label));
 
-      // For LOTO + Care Convo: collapse when complete
-      const isCollapseCandidate = (id === "loto_obs" || id === "care_convos");
+      // For LOTO + Care Convo + EFS + Pulse: collapse when complete
+      const isCollapseCandidate =
+        (id === "loto_obs" ||
+         id === "care_convos" ||
+         id === "efs" ||
+         id === "pulse_surv");
 
       if (isCollapseCandidate && done) {
         htmlParts.push(`
-          <div class="metric-row metric-collapsed" data-metric-id="${esc(id)}" data-target="${esc(target)}">
+          <div class="metric-row metric-collapsed"
+               data-metric-id="${esc(id)}"
+               data-target="${esc(target)}">
             <div class="metric-left">
               <div class="metric-title">${shortLabel}</div>
             </div>
@@ -238,23 +260,34 @@
 
       // Default full metric (still editable)
       htmlParts.push(`
-        <div class="metric-row" data-metric-id="${esc(id)}" data-target="${esc(target)}">
+        <div class="metric-row"
+             data-metric-id="${esc(id)}"
+             data-target="${esc(target)}">
           <div class="metric-top">
             <div class="metric-left">
               <div class="metric-title">${shortLabel}</div>
-              <div class="metric-subtitle">Target: <span class="target-val">${target}</span> / month</div>
+              <div class="metric-subtitle">
+                Target: <span class="target-val">${target}</span> / month
+              </div>
             </div>
 
-            <div class="status-pill ${done ? "status-good" : "status-bad"}" aria-live="polite">
+            <div class="status-pill ${done ? "status-good" : "status-bad"}"
+                 aria-live="polite">
               <span class="status-dot"></span>
               <span class="status-text">${done ? "Complete" : "Behind"}</span>
             </div>
           </div>
 
           <div class="counter counter-anchored">
-            <button class="btn" type="button" data-action="dec" aria-label="Decrease ${shortLabel}">−</button>
+            <button class="btn"
+                    type="button"
+                    data-action="dec"
+                    aria-label="Decrease ${shortLabel}">−</button>
             <div class="count" data-role="count">${val}</div>
-            <button class="btn" type="button" data-action="inc" aria-label="Increase ${shortLabel}">+</button>
+            <button class="btn"
+                    type="button"
+                    data-action="inc"
+                    aria-label="Increase ${shortLabel}">+</button>
           </div>
         </div>
       `);
@@ -267,101 +300,101 @@
   /* ========================================================= */
   /* =========================== Init ======================== */
   /* ========================================================= */
- 
-window.PortalWidgets.Monthly = {
-  init: function (slotId, cfg) {
-    const host = document.getElementById(slotId);
-    if (!host) return;
+  window.PortalWidgets.Monthly = {
+    init: function (slotId, cfg) {
+      const host = document.getElementById(slotId);
+      if (!host) return;
 
-    const store = getStore();
-    const config = cfg || {};
+      const store = getStore();
+      const config = cfg || {};
 
-    // --- Inject EFS + Pulse as standard counters at the top, if not already provided ---
-    const baseMetrics = Array.isArray(config.metrics) ? config.metrics.slice() : [];
-    const existingIds = new Set(baseMetrics.map(m => m && m.id));
+      // Inject EFS + Pulse as standard counters at the top if not provided
+      const baseMetrics = Array.isArray(config.metrics) ? config.metrics.slice() : [];
+      const existingIds = new Set(baseMetrics.map(m => m && m.id));
 
-    const extraMetrics = [];
+      const extraMetrics = [];
 
-    // Eyes For Safety – monthly counter, collapses when >= target (like LOTO)
-    if (!existingIds.has("efs")) {
-      extraMetrics.push({
-        id: "efs",
-        label: "Eyes For Safety",
-        target: 1   // treat as 1 per month; change if you want more
-      });
-    }
+      // Eyes For Safety – monthly counter, collapses when >= target (like LOTO)
+      if (!existingIds.has("efs")) {
+        extraMetrics.push({
+          id: "efs",
+          label: "Eyes For Safety",
+          target: 1  // adjust if you want a different target
+        });
+      }
 
-    // Pulse Survey – monthly counter, collapses when >= target
-    if (!existingIds.has("pulse_surv")) {
-      extraMetrics.push({
-        id: "pulse_surv",
-        label: "Pulse Survey",
-        target: 1   // treat as 1 per month; change if you want more
-      });
-    }
+      // Pulse Survey – monthly counter, collapses when >= target
+      if (!existingIds.has("pulse_surv")) {
+        extraMetrics.push({
+          id: "pulse_surv",
+          label: "Pulse Survey",
+          target: 1  // adjust if you want a different target
+        });
+      }
 
-    // Final metrics array: [EFS, Pulse, ...existing from app.js]
-    config.metrics = extraMetrics.concat(baseMetrics);
+      // Final metrics array: [EFS, Pulse, ...existing (LOTO, Care, Recognition, ...)]
+      config.metrics = extraMetrics.concat(baseMetrics);
 
-    let state = store.load(STORAGE_KEY);
-    if (!state || typeof state !== "object") state = {};
+      let state = store.load(STORAGE_KEY);
+      if (!state || typeof state !== "object") state = {};
 
-    pruneOldMonths(state);
-    ensureMonth(state, monthKey(new Date()));
+      pruneOldMonths(state);
+      ensureMonth(state, monthKey(new Date()));
+      store.save(STORAGE_KEY, state);
 
-    store.save(STORAGE_KEY, state);
+      render(host, config, state, new Date());
 
-    render(host, config, state, new Date());
+      // One event handler for the whole card
+      host.addEventListener("click", (e) => {
+        const btn = e.target.closest("button");
+        if (!btn) return;
 
-    // One event handler for the whole card
-    host.addEventListener("click", (e) => {
-      const btn = e.target.closest("button");
-      if (!btn) return;
+        const now = new Date();
+        const key = monthKey(now);
+        const row = e.target.closest(".metric-row");
+        if (!row) return;
 
-      const now = new Date();
-      const key = monthKey(now);
-      const row = e.target.closest(".metric-row");
-      if (!row) return;
+        const metricId = row.dataset.metricId;
+        if (!metricId) return;
 
-      const metricId = row.dataset.metricId;
-      if (!metricId) return;
+        // Recognition edit (only exists in expanded view)
+        if (btn.dataset.action === "recog-edit") {
+          const allot = Number(row.dataset.allotment || 0) || 0;
+          const current = getVal(state, key, metricId);
+          const raw = prompt(
+            `Add Recognition points (remaining ${Math.max(0, allot - current)}):`,
+            "10"
+          );
+          if (raw === null) return;
 
-      // Recognition edit (only exists in expanded view)
-      if (btn.dataset.action === "recog-edit") {
-        const allot = Number(row.dataset.allotment || 0) || 0;
+          const add = Number(String(raw).trim());
+          if (!Number.isFinite(add)) return;
+
+          const next = clamp(current + Math.round(add), 0, allot);
+          setVal(state, key, metricId, next);
+          pruneOldMonths(state);
+          store.save(STORAGE_KEY, state);
+          render(host, config, state, new Date());
+          return;
+        }
+
+        // Standard counter inc/dec
+        const action = btn.dataset.action;
+        if (!action) return;
+
+        ensureMonth(state, key);
         const current = getVal(state, key, metricId);
-        const raw = prompt(
-          `Add Recognition points (remaining ${Math.max(0, allot - current)}):`,
-          "10"
-        );
-        if (raw === null) return;
+        let next = current;
 
-        const add = Number(String(raw).trim());
-        if (!Number.isFinite(add)) return;
+        if (action === "inc") next = current + 1;
+        if (action === "dec") next = Math.max(0, current - 1);
 
-        const next = clamp(current + Math.round(add), 0, allot);
         setVal(state, key, metricId, next);
         pruneOldMonths(state);
         store.save(STORAGE_KEY, state);
         render(host, config, state, new Date());
-        return;
-      }
+      });
+    }
+  };
 
-      // Standard counter inc/dec
-      const action = btn.dataset.action;
-      if (!action) return;
-
-      ensureMonth(state, key);
-      const current = getVal(state, key, metricId);
-      let next = current;
-
-      if (action === "inc") next = current + 1;
-      if (action === "dec") next = Math.max(0, current - 1);
-
-      setVal(state, key, metricId, next);
-      pruneOldMonths(state);
-      store.save(STORAGE_KEY, state);
-      render(host, config, state, new Date());
-    });
-  }
-};
+})();
