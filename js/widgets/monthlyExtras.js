@@ -11,7 +11,13 @@
 
   Storage:
     portal_monthly_extras_v1
-    { monthKey: "YYYY-MM", items: { eyes: {completed, completedAt}, pulse: {completed, completedAt} } }
+    {
+      monthKey: "YYYY-MM",
+      items: {
+        eyes:  { completed: boolean, completedAt: number|null },
+        pulse: { completed: boolean, completedAt: number|null }
+      }
+    }
 */
 
 (function () {
@@ -48,7 +54,6 @@
     return window.PortalApp?.Storage || getFallbackStore();
   }
 
-  // Proper HTML escape for plain text
   function esc(s) {
     return String(s)
       .replaceAll("&", "&amp;")
@@ -62,12 +67,12 @@
     const mk = monthKey();
     let state = (raw && typeof raw === "object") ? raw : {};
 
-    // New month: reset both toggles
+    // New month → reset both toggles
     if (state.monthKey !== mk) {
       state = {
         monthKey: mk,
         items: {
-          eyes: { completed: false, completedAt: null },
+          eyes:  { completed: false, completedAt: null },
           pulse: { completed: false, completedAt: null }
         }
       };
@@ -87,7 +92,7 @@
         ? state.items.pulse
         : { completed: false, completedAt: null };
 
-    state.items.eyes.completed = !!state.items.eyes.completed;
+    state.items.eyes.completed  = !!state.items.eyes.completed;
     state.items.pulse.completed = !!state.items.pulse.completed;
 
     return state;
@@ -98,7 +103,7 @@
     if (!card) return slot;
 
     const list =
-      card.querySelector(".recent-list") ||
+      card.querySelector(".recent-list")  ||
       card.querySelector(".toggle-list") ||
       card.querySelector(".metrics-list") ||
       card;
@@ -116,7 +121,9 @@
       `
       : `
         <label class="switch" aria-label="Mark complete: ${esc(label)}">
-          <input type="checkbox" data-action="monthly-extra-toggle" data-id="${esc(id)}">
+          <input type="checkbox"
+                 data-action="monthly-extra-toggle"
+                 data-id="${esc(id)}">
           <span class="slider"></span>
         </label>
       `;
@@ -160,16 +167,13 @@
       }
 
       function render() {
-        // Normalize state each time in case month flipped
         state = ensureState(state);
 
         host = pickInsertionHost(slot);
 
-        // Remove previous block, if any
         const prev = slot.querySelector('[data-role="monthly-extras-wrap"]');
         if (prev) prev.remove();
 
-        // Inject new block
         const wrap = document.createElement("div");
         wrap.innerHTML = blockHTML(state);
         const node = wrap.firstElementChild;
@@ -179,11 +183,9 @@
         save();
       }
 
-      // If Monthly widget re-renders, re-inject ours
       const obs = new MutationObserver(() => setTimeout(render, 0));
       obs.observe(slot, { childList: true, subtree: true });
 
-      // Handle toggle changes
       slot.addEventListener("change", (e) => {
         const input = e.target.closest('input[data-action="monthly-extra-toggle"]');
         if (!input) return;
