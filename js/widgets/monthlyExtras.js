@@ -136,3 +136,72 @@
   function blockHTML(state) {
     return `
       <div data-role="monthly-extras-wrap" style="margin-top: 10px;">
+        ${rowHTML("eyes", "Eyes For Safety", !!state.items.eyes.completed)}
+        ${rowHTML("pulse", "Pulse Survey", !!state.items.pulse.completed)}
+      </div>
+    `;
+  }
+
+  window.PortalWidgets.MonthlyExtras = {
+    init(slotId) {
+      const slot = document.getElementById(slotId);
+      if (!slot) return;
+
+      if (slot.dataset.monthlyExtrasInited === "1") return;
+      slot.dataset.monthlyExtrasInited = "1";
+
+      const store = getStore();
+      let state = ensureState(store.load(STORAGE_KEY));
+
+      let host = null;
+
+      function save() {
+        store.save(STORAGE_KEY, state);
+      }
+
+      function render() {
+        // Normalize state each time in case month flipped
+        state = ensureState(state);
+
+        host = pickInsertionHost(slot);
+
+        // Remove previous block, if any
+        const prev = slot.querySelector('[data-role="monthly-extras-wrap"]');
+        if (prev) prev.remove();
+
+        // Inject new block
+        const wrap = document.createElement("div");
+        wrap.innerHTML = blockHTML(state);
+        const node = wrap.firstElementChild;
+        if (!node) return;
+
+        host.appendChild(node);
+        save();
+      }
+
+      // If Monthly widget re-renders, re-inject ours
+      const obs = new MutationObserver(() => setTimeout(render, 0));
+      obs.observe(slot, { childList: true, subtree: true });
+
+      // Handle toggle changes
+      slot.addEventListener("change", (e) => {
+        const input = e.target.closest('input[data-action="monthly-extra-toggle"]');
+        if (!input) return;
+
+        const id = input.dataset.id;
+        if (!id) return;
+
+        state = ensureState(state);
+        const hit = state.items[id];
+        if (!hit) return;
+
+        hit.completed = !!input.checked;
+        hit.completedAt = hit.completed ? Date.now() : null;
+
+        render();
+      });
+
+      render();
+    }
+  };
+})();
