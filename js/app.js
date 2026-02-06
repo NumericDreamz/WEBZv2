@@ -1,10 +1,5 @@
 (function () {
-  console.log("[Portal] app.js build 2026-02-06_01");
-
   async function boot() {
-    if (window.__PORTAL_BOOTED) return;
-    window.__PORTAL_BOOTED = true;
-
     try {
       const store = window.PortalApp && window.PortalApp.Storage;
 
@@ -32,9 +27,12 @@
       window.PortalWidgets.Daily?.init("daily-metrics-slot");
       window.PortalWidgets.Weekly?.init("weekly-metrics-slot");
       window.PortalWidgets.Yearly?.init("yearly-metrics-slot");
-
       window.PortalWidgets.RecentTasks?.init("recent-tasks-slot");
       window.PortalWidgets.Tier1Briefing?.init("tier1-briefing-slot");
+
+      // Add-on injectors (safe even if base widgets re-render)
+      window.PortalWidgets.WeeklyPayroll?.init("weekly-metrics-slot");
+      window.PortalWidgets.MonthlyExtras?.init("monthly-metrics-slot");
 
       console.log("[Portal] boot complete");
     } catch (err) {
