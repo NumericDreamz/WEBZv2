@@ -1,3 +1,4 @@
+
 /* ========================================================= */
 /* ============== monthlyExtras.js (Addon Rows) ============= */
 /* ========================================================= */
@@ -10,7 +11,7 @@
 
   Storage:
     portal_monthly_extras_v1
-    { monthKey: "YYYY-MM", items: { eyes: {completed, completedAt}, pulse: {completed, completedAt} } }
+    { monthKey: "YYYY-MM", items: { eyes:{completed,completedAt}, pulse:{completed,completedAt} } }
 */
 
 (function () {
@@ -39,6 +40,7 @@
     return window.PortalApp?.Storage || getFallbackStore();
   }
 
+  /** Correct HTML escape **/
   function esc(s) {
     return String(s)
       .replaceAll("&", "&amp;")
@@ -51,6 +53,7 @@
   function ensureState(raw) {
     const mk = monthKey();
     let state = (raw && typeof raw === "object") ? raw : {};
+
     if (state.monthKey !== mk) {
       state = {
         monthKey: mk,
@@ -61,11 +64,22 @@
       };
       return state;
     }
-    state.items = state.items && typeof state.items === "object" ? state.items : {};
-    state.items.eyes = state.items.eyes && typeof state.items.eyes === "object" ? state.items.eyes : { completed:false, completedAt:null };
-    state.items.pulse = state.items.pulse && typeof state.items.pulse === "object" ? state.items.pulse : { completed:false, completedAt:null };
-    state.items.eyes.completed = !!state.items.eyes.completed;
+
+    state.items = (state.items && typeof state.items === "object") ? state.items : {};
+
+    state.items.eyes  =
+      (state.items.eyes  && typeof state.items.eyes === "object")
+        ? state.items.eyes
+        : { completed: false, completedAt: null };
+
+    state.items.pulse =
+      (state.items.pulse && typeof state.items.pulse === "object")
+        ? state.items.pulse
+        : { completed: false, completedAt: null };
+
+    state.items.eyes.completed  = !!state.items.eyes.completed;
     state.items.pulse.completed = !!state.items.pulse.completed;
+
     return state;
   }
 
@@ -143,6 +157,7 @@
 
         const wrap = document.createElement("div");
         wrap.innerHTML = blockHTML(state);
+
         const node = wrap.firstElementChild;
         if (!node) return;
 
@@ -150,7 +165,6 @@
         save();
       }
 
-      // If Monthly widget re-renders, re-inject ours.
       const obs = new MutationObserver(() => setTimeout(render, 0));
       obs.observe(slot, { childList: true, subtree: true });
 
@@ -162,6 +176,7 @@
         if (!id) return;
 
         state = ensureState(state);
+
         const hit = state.items[id];
         if (!hit) return;
 
