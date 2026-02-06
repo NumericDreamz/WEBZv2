@@ -72,7 +72,6 @@
     return d;
   }
 
-  // Proper HTML escape for plain text
   function esc(s) {
     return String(s)
       .replaceAll("&", "&amp;")
@@ -88,7 +87,7 @@
       .payroll-row-wrap { margin-top: 10px; }
       .payroll-collapsed { opacity: 0.95; }
 
-      /* Overdue payroll: match aggressive weekly overdue look */
+      /* Overdue payroll: reuse the aggressive weekly overdue look */
       .payroll-row.payroll-overdue {
         border-color: #ff3b3b;
         box-shadow: 0 0 0 2px rgba(255, 59, 59, .28) inset,
@@ -114,8 +113,9 @@
     const cycleStart = getCycleStartWednesday(now);
     const cycleKey = ymd(cycleStart);
 
-    // Reset for a new cycle
     if (!state || typeof state !== "object") state = {};
+
+    // Reset for a new cycle
     if (state.cycleKey !== cycleKey) {
       state.cycleKey = cycleKey;
       state.completed = false;
@@ -132,7 +132,7 @@
     }
 
     // Overdue if it's after Wednesday ends (Thu 00:00+) and not completed
-    const overdue = !completed && (nowTs >= (cycleStart.getTime() + 24 * 60 * 60 * 1000)); // Thu 00:00+
+    const overdue = !completed && (nowTs >= (cycleStart.getTime() + 24 * 60 * 60 * 1000));
 
     const rowCls = [
       "toggle-row",
@@ -173,14 +173,13 @@
   }
 
   function pickInsertionHost(slot) {
-    // Try to inject "inside" the weekly card/list if it exists, otherwise append to the slot.
     const card = slot.querySelector(".metrics-card") || slot.firstElementChild;
     if (!card) return slot;
 
     const list =
-      card.querySelector(".recent-list") ||
-      card.querySelector(".toggle-list") ||
-      card.querySelector(".metrics-list") ||
+      card.querySelector(".recent-list")   ||
+      card.querySelector(".toggle-list")   ||
+      card.querySelector(".metrics-list")  ||
       card;
 
     return list || slot;
@@ -193,7 +192,6 @@
       const slot = document.getElementById(slotId);
       if (!slot) return;
 
-      // Prevent double-init
       if (slot.dataset.weeklyPayrollInited === "1") return;
       slot.dataset.weeklyPayrollInited = "1";
 
@@ -212,14 +210,12 @@
       function render() {
         host = pickInsertionHost(slot);
 
-        // Remove previous
         const prev = slot.querySelector('[data-role="payroll-wrap"]');
         if (prev) prev.remove();
 
         const now = new Date();
         const built = buildRowHTML(state, now);
 
-        // If not visible (completed + after midnight), do nothing.
         if (!built.visible) {
           save();
           return;
@@ -242,9 +238,7 @@
         }, msUntilNextMidnight(new Date()));
       }
 
-      // Observe slot changes so if Weekly widget re-renders, we re-inject.
       const obs = new MutationObserver(() => {
-        // cheap debounce by letting DOM settle a tick
         setTimeout(render, 0);
       });
       obs.observe(slot, { childList: true, subtree: true });
