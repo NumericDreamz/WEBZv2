@@ -129,7 +129,7 @@
       <div class="payroll-row-wrap" data-role="payroll-wrap">
         <div class="${rowCls}">
           <div class="toggle-left">
-            <div class="toggle-title">${esc("Payroll (Wednesday)")}</div>
+            <div class="toggle-title">${esc("Payroll")}</div>
           </div>
           <div class="toggle-right rt-right">
             ${right}
