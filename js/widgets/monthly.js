@@ -72,6 +72,8 @@
   function shortNameForMetricId(id, fallbackLabel) {
     if (id === "loto_obs") return "LOTO";
     if (id === "care_convos") return "Care Convo";
+    if (id === "efs") return "Eyes For Safety";
+    if (id === "pulse_surv") return "Pulse Survey";
     return fallbackLabel || id;
   }
 
@@ -337,3 +339,4 @@
     }
   };
 })();
+
