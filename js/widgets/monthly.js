@@ -1,6 +1,6 @@
 
 /* ========================================================= */
-/* ===================== monthly.js (Widget) ================= */
+/* ===================== monthly.js (Widget) =============== */
 /* ========================================================= */
 /*
   Purpose:
@@ -12,15 +12,14 @@
   Top progress bar:
     % through the current month (under the title)
 
-  Behavior updates:
-    - Removed the Monthly reset button (obsolete test control).
-    - Recognition no longer shows a month progress bar inside itself.
+  Behavior:
     - Recognition collapses into a minimal "Complete" row when used >= allotment.
     - LOTO + Care Convo collapse into minimal "Complete" rows when val >= target:
         * No "Target: x / month"
         * No +/- controls
         * Display names shortened to "LOTO" and "Care Convo"
-    - All "On track" pills changed to "Complete"
+    - EFS + Pulse are simple toggles (no counters). When on, they show "Complete".
+    - All red status pills say "Incomplete" instead of "Behind".
 
   Storage:
     STORAGE_KEY: portal_monthly_metrics_v2
@@ -53,6 +52,7 @@
     return Math.max(min, Math.min(max, n));
   }
 
+  // Escape plain text for HTML
   function esc(s) {
     return String(s)
       .replaceAll("&", "&amp;")
@@ -201,8 +201,7 @@
                 <div class="recog-points">
                   <span data-role="recog-used">${used}</span>/${allot}
                 </div>
-                <button class="btn"
-                        type="button"
+                <button class="btn" type="button"
                         data-action="recog-edit"
                         aria-label="Update Recognition points">+</button>
               </div>
@@ -225,7 +224,46 @@
       }
 
       /* ========================================================= */
-      /* ============== Standard counter metric ================== */
+      /* ================= Simple toggle metrics ================= */
+      /* ========================================================= */
+      const isToggleMetric = (id === "efs" || id === "pulse_surv");
+      if (isToggleMetric) {
+        const rawVal = getVal(state, key, id);
+        const done = !!rawVal;
+        const label = esc(shortNameForMetricId(id, m.label));
+
+        const right = done
+          ? `
+            <div class="status-pill status-good" aria-live="polite">
+              <span class="status-dot"></span>
+              <span class="status-text">Complete</span>
+            </div>
+          `
+          : `
+            <label class="switch" aria-label="Mark complete: ${label}">
+              <input type="checkbox"
+                     data-action="toggle-metric"
+                     data-metric-id="${esc(id)}">
+              <span class="slider"></span>
+            </label>
+          `;
+
+        htmlParts.push(`
+          <div class="metric-row metric-toggle"
+               data-metric-id="${esc(id)}">
+            <div class="metric-left">
+              <div class="metric-title">${label}</div>
+            </div>
+            <div class="metric-right">
+              ${right}
+            </div>
+          </div>
+        `);
+        continue;
+      }
+
+      /* ========================================================= */
+      /* ============== Standard counter metrics ================= */
       /* ========================================================= */
       const target = Number(m.target || 0);
       const val = getVal(state, key, id);
@@ -233,12 +271,8 @@
 
       const shortLabel = esc(shortNameForMetricId(id, m.label));
 
-      // For LOTO + Care Convo + EFS + Pulse: collapse when complete
-      const isCollapseCandidate =
-        (id === "loto_obs" ||
-         id === "care_convos" ||
-         id === "efs" ||
-         id === "pulse_surv");
+      // LOTO + Care Convos collapse when complete
+      const isCollapseCandidate = (id === "loto_obs" || id === "care_convos");
 
       if (isCollapseCandidate && done) {
         htmlParts.push(`
@@ -274,18 +308,16 @@
             <div class="status-pill ${done ? "status-good" : "status-bad"}"
                  aria-live="polite">
               <span class="status-dot"></span>
-              <span class="status-text">${done ? "Complete" : "Behind"}</span>
+              <span class="status-text">${done ? "Complete" : "Incomplete"}</span>
             </div>
           </div>
 
           <div class="counter counter-anchored">
-            <button class="btn"
-                    type="button"
+            <button class="btn" type="button"
                     data-action="dec"
                     aria-label="Decrease ${shortLabel}">−</button>
             <div class="count" data-role="count">${val}</div>
-            <button class="btn"
-                    type="button"
+            <button class="btn" type="button"
                     data-action="inc"
                     aria-label="Increase ${shortLabel}">+</button>
           </div>
@@ -308,31 +340,26 @@
       const store = getStore();
       const config = cfg || {};
 
-      // Inject EFS + Pulse as standard counters at the top if not provided
+      // Inject EFS + Pulse as simple toggles at the top if not provided
       const baseMetrics = Array.isArray(config.metrics) ? config.metrics.slice() : [];
       const existingIds = new Set(baseMetrics.map(m => m && m.id));
 
       const extraMetrics = [];
 
-      // Eyes For Safety – monthly counter, collapses when >= target (like LOTO)
       if (!existingIds.has("efs")) {
         extraMetrics.push({
           id: "efs",
-          label: "Eyes For Safety",
-          target: 1  // adjust if you want a different target
+          label: "Eyes For Safety"
         });
       }
 
-      // Pulse Survey – monthly counter, collapses when >= target
       if (!existingIds.has("pulse_surv")) {
         extraMetrics.push({
           id: "pulse_surv",
-          label: "Pulse Survey",
-          target: 1  // adjust if you want a different target
+          label: "Pulse Survey"
         });
       }
 
-      // Final metrics array: [EFS, Pulse, ...existing (LOTO, Care, Recognition, ...)]
       config.metrics = extraMetrics.concat(baseMetrics);
 
       let state = store.load(STORAGE_KEY);
@@ -344,7 +371,7 @@
 
       render(host, config, state, new Date());
 
-      // One event handler for the whole card
+      // Counters & recognition (click handlers)
       host.addEventListener("click", (e) => {
         const btn = e.target.closest("button");
         if (!btn) return;
@@ -382,14 +409,33 @@
         const action = btn.dataset.action;
         if (!action) return;
 
-        ensureMonth(state, key);
-        const current = getVal(state, key, metricId);
+        const keyNow = monthKey(new Date());
+        ensureMonth(state, keyNow);
+        const current = getVal(state, keyNow, metricId);
         let next = current;
 
         if (action === "inc") next = current + 1;
         if (action === "dec") next = Math.max(0, current - 1);
 
-        setVal(state, key, metricId, next);
+        setVal(state, keyNow, metricId, next);
+        pruneOldMonths(state);
+        store.save(STORAGE_KEY, state);
+        render(host, config, state, new Date());
+      });
+
+      // Simple toggle handlers (EFS, Pulse)
+      host.addEventListener("change", (e) => {
+        const input = e.target.closest('input[data-action="toggle-metric"]');
+        if (!input) return;
+
+        const metricId = input.dataset.metricId;
+        if (!metricId) return;
+
+        const now = new Date();
+        const key = monthKey(now);
+
+        ensureMonth(state, key);
+        setVal(state, key, metricId, input.checked ? 1 : 0);
         pruneOldMonths(state);
         store.save(STORAGE_KEY, state);
         render(host, config, state, new Date());
