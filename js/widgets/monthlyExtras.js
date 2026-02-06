@@ -112,7 +112,6 @@
   function blockHTML(state) {
     return `
       <div data-role="monthly-extras-wrap" style="margin-top: 10px;">
-        <div style="opacity:0.85; font-size:0.95em; margin: 6px 0 8px 0;">Monthly</div>
         ${rowHTML("eyes", "Eyes For Safety", !!state.items.eyes.completed)}
         ${rowHTML("pulse", "Pulse Survey", !!state.items.pulse.completed)}
       </div>
