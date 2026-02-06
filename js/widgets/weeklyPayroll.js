@@ -1,3 +1,4 @@
+
 /* ========================================================= */
 /* ============== weeklyPayroll.js (Addon Row) ============== */
 /* ========================================================= */
@@ -22,8 +23,13 @@
 
   const STORAGE_KEY = "portal_weekly_payroll_v1";
 
-  function pad2(n) { return String(n).padStart(2, "0"); }
-  function ymd(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+  function pad2(n) {
+    return String(n).padStart(2, "0");
+  }
+
+  function ymd(d) {
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  }
 
   function startOfDay(ts = Date.now()) {
     const d = new Date(ts);
@@ -53,6 +59,7 @@
     return window.PortalApp?.Storage || getFallbackStore();
   }
 
+  // Find the Wednesday that is the start of the current payroll cycle
   function getCycleStartWednesday(now = new Date()) {
     // JS: 0=Sun,1=Mon,2=Tue,3=Wed...
     const d = new Date(now);
@@ -63,20 +70,7 @@
     return d;
   }
 
-  function ensureStyleOnce() {
-    if (document.getElementById("weekly-payroll-style")) return;
-    const css = `
-      .payroll-row-wrap { margin-top: 10px; }
-      .payroll-overdue { animation: payrollPulse 1s infinite; }
-      @keyframes payrollPulse { 0%{filter:none} 50%{filter:brightness(1.25)} 100%{filter:none} }
-      .payroll-collapsed { opacity: 0.95; }
-    `;
-    const style = document.createElement("style");
-    style.id = "weekly-payroll-style";
-    style.textContent = css;
-    document.head.appendChild(style);
-  }
-
+  // Correct HTML esc
   function esc(s) {
     return String(s)
       .replaceAll("&", "&amp;")
@@ -86,12 +80,40 @@
       .replaceAll("'", "&#039;");
   }
 
+  function ensureStyleOnce() {
+    if (document.getElementById("weekly-payroll-style")) return;
+    const css = `
+      .payroll-row-wrap { margin-top: 10px; }
+      .payroll-collapsed { opacity: 0.95; }
+      /* Make overdue payroll match the aggressive weekly overdue look */
+      .payroll-row.payroll-overdue {
+        border-color: #ff3b3b;
+        box-shadow: 0 0 0 2px rgba(255, 59, 59, .28) inset,
+                    0 0 18px rgba(255, 0, 0, .18);
+        animation: weeklyRage 0.65s infinite;
+      }
+      .payroll-row.payroll-overdue .slider {
+        background: #5a0000;
+        border-color: #ff3b3b;
+      }
+      .payroll-row.payroll-overdue .slider:before {
+        background: #ffd1d1;
+      }
+    `;
+    const style = document.createElement("style");
+    style.id = "weekly-payroll-style";
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
   function buildRowHTML(state, now) {
     const nowTs = now.getTime();
     const cycleStart = getCycleStartWednesday(now);
     const cycleKey = ymd(cycleStart);
+    const wedStart = cycleStart.getTime();
 
     // Reset for a new cycle
+    if (!state || typeof state !== "object") state = {};
     if (state.cycleKey !== cycleKey) {
       state.cycleKey = cycleKey;
       state.completed = false;
@@ -101,15 +123,24 @@
     const completed = !!state.completed;
     const completedAt = Number(state.completedAt || 0) || null;
 
+    // Hide before Wednesday
+    if (nowTs < wedStart) {
+      return { html: "", visible: false };
+    }
+
     // If completed, only show the green collapsed row on the completion day.
     // After midnight rolls, it vanishes until next cycle.
     if (completed && completedAt && startOfDay(completedAt) < startOfDay(nowTs)) {
       return { html: "", visible: false };
     }
 
-    const overdue = !completed && (nowTs >= (cycleStart.getTime() + 24 * 60 * 60 * 1000)); // Thu 00:00+
+    // Overdue if it's after Wednesday ends (Thu 00:00+) and not completed
+    const overdue = !completed && (nowTs >= (wedStart + 24 * 60 * 60 * 1000)); // Thu 00:00+
 
-    const rowCls = `toggle-row rt-row payroll-row ${overdue ? "rt-overdue payroll-overdue" : ""} ${completed ? "payroll-collapsed" : ""}`;
+    const rowCls =
+      `toggle-row rt-row payroll-row` +
+      (overdue ? " rt-overdue payroll-overdue" : "") +
+      (completed ? " payroll-collapsed" : "");
 
     const right = completed
       ? `
@@ -188,7 +219,7 @@
         const now = new Date();
         const built = buildRowHTML(state, now);
 
-        // If not visible (completed + after midnight), do nothing.
+        // If not visible (completed + after midnight, or before Wed), do nothing.
         if (!built.visible) {
           save();
           return;
