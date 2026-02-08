@@ -1,30 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ATS Portal</title>
+
   <link rel="stylesheet" href="css/styles.css" />
 
   <!-- JS modules (plain old script files, no bundler, no drama) -->
-  <script src="js/storage.js?v=20260206_1" defer></script>
-  <script src="js/persistence.js?v=20260206_1" defer></script>
+  <script src="js/storage.js?v=20260207_1" defer></script>
+  <script src="js/persistence.js?v=20260207_1" defer></script>
 
-  <script src="js/widgets/monthly.js?v=20260206_1" defer></script>
-  <script src="js/widgets/weekly.js?v=20260206_1" defer></script>
-  <script src="js/widgets/daily.js?v=20260206_1" defer></script>
-  <script src="js/widgets/yearly.js?v=20260206_1" defer></script>
-  <script src="js/widgets/recentTasks.js?v=20260206_1" defer></script>
-  <script src="js/widgets/tier1Briefing.js?v=20260206_1" defer></script>
+  <script src="js/widgets/monthly.js?v=20260207_1" defer></script>
+  <script src="js/widgets/weekly.js?v=20260207_1" defer></script>
+  <script src="js/widgets/daily.js?v=20260207_1" defer></script>
+  <script src="js/widgets/yearly.js?v=20260207_1" defer></script>
+  <script src="js/widgets/recentTasks.js?v=20260207_1" defer></script>
+  <script src="js/widgets/tier1Briefing.js?v=20260207_1" defer></script>
 
-  <!-- Removed for rollback:
-       <script src="js/widgets/weeklyPayroll.js?v=20260206_4" defer></script>
-       <script src="js/widgets/monthlyExtras.js?v=20260206_4" defer></script>
-       <script src="js/widgets/hotFixes.js?v=20260206_1" defer></script>
-  -->
-
-  <script src="js/app.js?v=20260206_2" defer></script>
+  <script src="js/app.js?v=20260207_1" defer></script>
 </head>
 
 <body>
@@ -73,7 +67,14 @@
 
       </div>
 
-      <!-- EVERYTHING ELSE: tucked into a dropdown -->
+      <!-- ========================================================= -->
+      <!-- CENTER COLUMN WIDGETS -->
+      <!-- ========================================================= -->
+
+      <div id="recent-tasks-slot"></div>
+      <div id="tier1-briefing-slot"></div>
+
+      <!-- EVERYTHING ELSE: tucked into a dropdown (now at the bottom) -->
       <details class="more-links" id="more-links">
         <summary>More Links</summary>
 
@@ -161,22 +162,6 @@
 
         </div>
       </details>
-
-      <!-- ========================================================= -->
-      <!-- RECENT + TIER 1 BRIEFING (side-by-side when space allows) -->
-      <!-- ========================================================= -->
-      <div
-        style="
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-          gap: 14px;
-          margin-top: 14px;
-          align-items: start;
-        "
-      >
-        <div id="recent-tasks-slot"></div>
-        <div id="tier1-briefing-slot"></div>
-      </div>
 
     </main>
 
