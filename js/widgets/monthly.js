@@ -248,19 +248,14 @@ if (isToggleMetric) {
     `;
 
   htmlParts.push(`
-    <div class="metric-row metric-toggle metric-collapsed"
-    data-metric-id="${esc(id)}">
-
-      <div class="metric-top">
-        <div class="metric-left">
-          <div class="metric-title">${label}</div>
-        </div>
-
-        <div class="metric-right">
-          ${right}
-        </div>
+    <div class="metric-row metric-collapsed"
+         data-metric-id="${esc(id)}">
+      <div class="metric-left">
+        <div class="metric-title">${label}</div>
       </div>
-
+      <div class="metric-right">
+        ${right}
+      </div>
     </div>
   `);
   continue;

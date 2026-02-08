@@ -1013,11 +1013,19 @@ body{
 }
 
 
-
-
-
-
-
-
-
-
+/* ========================================================= */
+/* ============ Center: Recent + Tier 1 layout ============= */
+/* ========================================================= */
+.center-widgets-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+  align-items: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+}
+.center-widget-slot{
+  flex: 1 1 320px;
+  min-width: 260px;
+}
