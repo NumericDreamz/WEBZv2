@@ -3,10 +3,11 @@ window.PortalApp = window.PortalApp || {};
 PortalApp.Storage = (function () {
   "use strict";
 
-  console.log("[Portal] storage.js build 2026-01-30_01");
+  console.log("[Portal] storage.js build 2026-02-07_01");
 
   const MASTER_KEY = "ats_portal_state_v1";
   const REMOTE_CACHE_KEY = "portal_state_cache_v1";
+  const META_KEY = "__meta";
 
   const PUSH_DEBOUNCE_MS = 700;
   let pushTimer = null;
@@ -20,6 +21,27 @@ PortalApp.Storage = (function () {
     }
   }
 
+  function uid() {
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+
+  function ensureMeta(master) {
+    if (!master || typeof master !== "object") master = {};
+    if (!master[META_KEY] || typeof master[META_KEY] !== "object") master[META_KEY] = {};
+    if (typeof master[META_KEY].updatedAt !== "number") master[META_KEY].updatedAt = 0;
+    if (!master[META_KEY].deviceId) master[META_KEY].deviceId = uid();
+    return master;
+  }
+
+  function metaUpdatedAt(obj) {
+    try {
+      const t = obj && obj[META_KEY] && typeof obj[META_KEY].updatedAt === "number" ? obj[META_KEY].updatedAt : 0;
+      return Number.isFinite(t) ? t : 0;
+    } catch {
+      return 0;
+    }
+  }
+
   function mirrorRemoteCache(master) {
     try {
       localStorage.setItem(REMOTE_CACHE_KEY, JSON.stringify(master || {}));
@@ -28,7 +50,8 @@ PortalApp.Storage = (function () {
 
   function readMaster() {
     const raw = localStorage.getItem(MASTER_KEY);
-    const master = raw ? safeParse(raw) : {};
+    let master = raw ? safeParse(raw) : {};
+    master = ensureMeta(master);
 
     // Migrate legacy portal_* keys into master (one-time-ish)
     let changed = false;
@@ -53,14 +76,18 @@ PortalApp.Storage = (function () {
       changed = true;
     }
 
-    if (changed) localStorage.setItem(MASTER_KEY, JSON.stringify(master));
+    if (changed) {
+      localStorage.setItem(MASTER_KEY, JSON.stringify(master));
+    }
+
     mirrorRemoteCache(master);
     return master;
   }
 
   function writeMaster(master) {
-    localStorage.setItem(MASTER_KEY, JSON.stringify(master || {}));
-    mirrorRemoteCache(master);
+    const m = ensureMeta(master || {});
+    localStorage.setItem(MASTER_KEY, JSON.stringify(m));
+    mirrorRemoteCache(m);
   }
 
   async function pushNow(master) {
@@ -71,8 +98,12 @@ PortalApp.Storage = (function () {
 
     mirrorRemoteCache(master);
 
-    const res = await p.setState(master);
-    return res || { ok: true };
+    try {
+      const res = await p.setState(master);
+      return res || { ok: true };
+    } catch (e) {
+      return { ok: false, reason: "push_failed", error: String(e) };
+    }
   }
 
   function schedulePush(master) {
@@ -82,23 +113,31 @@ PortalApp.Storage = (function () {
     }, PUSH_DEBOUNCE_MS);
   }
 
-  async function pullNow() {
+  async function fetchRemote() {
     const p = window.PortalApp?.Persistence;
     if (!p || typeof p.getState !== "function") {
       return { ok: false, reason: "PortalApp.Persistence.getState missing" };
     }
 
-    const res = await p.getState();
-
-    if (res && res.ok && res.state && typeof res.state === "object") {
-      writeMaster(res.state);
-      return { ok: true, state: res.state };
+    try {
+      const res = await p.getState();
+      if (res && res.ok && res.state && typeof res.state === "object") {
+        return { ok: true, state: ensureMeta(res.state) };
+      }
+      if (res && res.ok && !res.state) return { ok: true, state: null };
+      return { ok: false, reason: "pull_failed", error: res?.error || "unknown" };
+    } catch (e) {
+      return { ok: false, reason: "pull_failed", error: String(e) };
     }
+  }
 
-    // Remote empty or failed; do not overwrite local
-    if (res && res.ok && !res.state) return { ok: true, state: null };
+  function chooseWinner(local, remote) {
+    const lt = metaUpdatedAt(local);
+    const rt = metaUpdatedAt(remote);
 
-    return { ok: false, reason: "pull_failed", error: res?.error || "unknown" };
+    // Only let remote overwrite if it is strictly newer.
+    // If equal or remote missing meta, keep local.
+    return (rt > lt) ? remote : local;
   }
 
   function load(key) {
@@ -109,6 +148,7 @@ PortalApp.Storage = (function () {
   function save(key, val) {
     const master = readMaster();
     master[key] = val;
+    master[META_KEY].updatedAt = Date.now();
     writeMaster(master);
     schedulePush(master);
   }
@@ -119,19 +159,36 @@ PortalApp.Storage = (function () {
   }
 
   function importAll(jsonText) {
-    const obj = safeParse(jsonText);
+    const obj = ensureMeta(safeParse(jsonText));
     if (!obj || typeof obj !== "object") throw new Error("Backup file is not valid JSON.");
+    obj[META_KEY].updatedAt = Date.now();
     writeMaster(obj);
     schedulePush(obj);
   }
 
+  // app.js calls this
   async function init() {
-    const pulled = await pullNow();
+    const local = readMaster();
+    const pulled = await fetchRemote();
 
-    // If remote is empty but local has state, push local up (first-time setup)
+    // Remote empty: push local up for first-time setup
     if (pulled?.ok && !pulled?.state) {
-      const local = readMaster();
       if (Object.keys(local).length) await pushNow(local);
+      return pulled;
+    }
+
+    // Remote has data: pick the newest (by meta.updatedAt)
+    if (pulled?.ok && pulled.state) {
+      const remote = pulled.state;
+      const winner = chooseWinner(local, remote);
+      writeMaster(winner);
+
+      // If local was newer, push it up so remote stops resurrecting zombies.
+      if (winner === local && metaUpdatedAt(local) > metaUpdatedAt(remote)) {
+        await pushNow(local);
+      }
+
+      return { ok: true, state: winner };
     }
 
     return pulled;
@@ -143,7 +200,16 @@ PortalApp.Storage = (function () {
   }
 
   async function forcePull() {
-    return pullNow();
+    const local = readMaster();
+    const pulled = await fetchRemote();
+    if (pulled?.ok && pulled.state) {
+      const winner = chooseWinner(local, pulled.state);
+      writeMaster(winner);
+      if (winner === local && metaUpdatedAt(local) > metaUpdatedAt(pulled.state)) {
+        await pushNow(local);
+      }
+    }
+    return pulled;
   }
 
   return { load, save, exportAll, importAll, init, forcePush, forcePull };

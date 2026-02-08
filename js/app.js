@@ -3,6 +3,7 @@
     try {
       const store = window.PortalApp && window.PortalApp.Storage;
 
+      // Pull remote state first if available (but NEVER block rendering)
       if (store && typeof store.init === "function") {
         try {
           await store.init();
@@ -16,6 +17,7 @@
         return;
       }
 
+      // Monthly on the left
       window.PortalWidgets.Monthly?.init("monthly-metrics-slot", {
         metrics: [
           { id: "loto_obs", label: "LOTO Observations", target: 4 },
@@ -29,10 +31,6 @@
       window.PortalWidgets.Yearly?.init("yearly-metrics-slot");
       window.PortalWidgets.RecentTasks?.init("recent-tasks-slot");
       window.PortalWidgets.Tier1Briefing?.init("tier1-briefing-slot");
-
-      // Add-on injectors (safe even if base widgets re-render)
-      window.PortalWidgets.WeeklyPayroll?.init("weekly-metrics-slot");
-      window.PortalWidgets.MonthlyExtras?.init("monthly-metrics-slot");
 
       console.log("[Portal] boot complete");
     } catch (err) {

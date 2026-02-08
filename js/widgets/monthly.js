@@ -248,8 +248,8 @@ if (isToggleMetric) {
     `;
 
   htmlParts.push(`
-    <div class="metric-row metric-toggle"
-         data-metric-id="${esc(id)}">
+    <div class="metric-row metric-toggle metric-collapsed"
+    data-metric-id="${esc(id)}">
 
       <div class="metric-top">
         <div class="metric-left">
