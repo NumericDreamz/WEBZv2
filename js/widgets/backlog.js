@@ -182,18 +182,22 @@
       host.appendChild(row);
     });
 
-    // Event delegation for toggles
-    host.addEventListener("click", (e) => {
-      const btn = e.target && e.target.closest ? e.target.closest(".backlogToggle") : null;
-      if (!btn) return;
-
-      const row = btn.closest(".backlogRow");
-      if (!row) return;
-
-      const isExpanded = row.classList.toggle("is-expanded");
-      btn.textContent = isExpanded ? "−" : "+";
-      btn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
-    }, { once: true }); // attach once per render call
+// Event delegation for toggles (bind once per host)
+if (!host.dataset.backlogBound) {
+  host.addEventListener("click", (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest(".backlogToggle") : null;
+    if (!btn) return;
+ 
+    const row = btn.closest(".backlogRow");
+    if (!row) return;
+ 
+    const isExpanded = row.classList.toggle("is-expanded");
+    btn.textContent = isExpanded ? "-" : "+";
+    btn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+  });
+ 
+  host.dataset.backlogBound = "1";
+}
   }
 
   async function load(hostId, options = {}) {
