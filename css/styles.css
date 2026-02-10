@@ -1257,3 +1257,45 @@ body{
 .backlogToggle{
   justify-self: end;          /* hard-pin to the right edge */
 }
+/* ===== Backlog Status Pills (hard override) ===== */
+
+.backlogStatusSlot{
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  min-width: 0 !important;
+}
+
+.backlogStatusPill{
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 6px 10px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  border: 1px solid transparent !important;
+  white-space: nowrap !important;
+}
+
+/* Red */
+.backlogStatusPill.backlogStatus-awaiting_parts{
+  background: var(--badBg) !important;
+  color: var(--badText) !important;
+  border-color: var(--badBorder) !important;
+}
+
+/* Yellow */
+.backlogStatusPill.backlogStatus-on_order{
+  background: #2a2400 !important;
+  color: #ffe8a3 !important;
+  border-color: #8a6a00 !important;
+}
+
+/* Green */
+.backlogStatusPill.backlogStatus-scheduled{
+  background: var(--goodBg) !important;
+  color: var(--goodText) !important;
+  border-color: var(--goodBorder) !important;
+}
