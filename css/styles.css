@@ -1,67 +1,57 @@
-/* ========================================================= */
-/* ======================= Backlog ========================= */
-/* ========================================================= */
+* { box-sizing: border-box; }
 
-.widget{
-  margin: 0 10px 10px;
-  padding: 14px 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--panel);
+:root{
+  --bg: #000;
+  --panel: #1a1a1a;
+  --panel2: #111;
+  --border: #333;
+  --text: #fff;
+  --muted: rgba(255,255,255,.72);
+
+  --btn: #222;
+  --btnBorder: #444;
+  --btnHover: #2a2a2a;
+
+  --badBg: #2a0b0b;
+  --badBorder: #5a1c1c;
+  --badText: #ffb4b4;
+  --badDot: #ff3b3b;
+
+  --goodBg: #0b2a12;
+  --goodBorder: #1f5a2a;
+  --goodText: #b8ffcc;
+  --goodDot: #22c55e;
+  
+  --rowGap: 12px;
+}
+
+body{
+  font-family: Arial, sans-serif;
+  background-color: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  overflow: hidden;
+  margin: 0;
 }
 
-.widgetHeader{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
+.logo img{
+  width: 200px;
+  display: block;
+  margin: 0 auto 20px;
 }
 
-.widgetTitle{
-  font-size: 16px;
-  font-weight: 900;
-  letter-spacing: 0.2px;
+/* ========================================================= */
+/* ================= Global Spacing Knobs ================== */
+/* ========================================================= */
+
+:root{
+  --head-gap: 10px;   /* title area -> next element (date pill / progress bar) */
+  --meta-gap: 10px;   /* date pill / progress bar -> first row */
+  --row-gap: 5px;    /* spacing BETWEEN rows (monthly/daily/weekly) */
 }
 
-.backlogList{
-  display: grid;
-  gap: 10px;
-}
+/* ========================================================= */
+/* ==================== 3-column layout ==================== */
+/* ========================================================= */
 
-.backlogRow{
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 12px;
-  padding: 10px 10px;
-  border-radius: 12px;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-}
-
-.backlogRow:hover{
-  border-color: #444;
-  background: #161616;
-}
-
-.backlogTask{
-  font-weight: 900;
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.backlogDesc{
-  font-size: 13px;
-  color: var(--muted);
-  word-break: break-word;
-}
-
-.backlogMsg{
-  padding: 6px 2px;
-  color: var(--muted);
-}
+.page-layout{
+  max-width: 1600px;
+  margin: 0 auto;
