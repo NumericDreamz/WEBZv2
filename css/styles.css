@@ -1215,7 +1215,7 @@ body{
   display: grid !important;
   grid-template-columns: 90px minmax(0, 1fr) 38px !important;
   gap: 12px;
-  padding: 10px 10px;
+  padding: 5px 10px;
   align-items: center;
 }
 
