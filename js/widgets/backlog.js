@@ -3,6 +3,7 @@
   "use strict";
 
   const DEFAULTS = { limit: 50, timeoutMs: 10000 };
+  const STATUS_KEY = "backlog_status_map_v1";
 
   function $(id) { return document.getElementById(id); }
 
@@ -24,6 +25,37 @@
     const webAppUrl = (window.PORTALSTATE_WEBAPP_URL || "").toString().trim();
     const token = (window.PORTALSTATE_TOKEN || "").toString().trim();
     return { webAppUrl, token };
+  }
+
+  function getStore() {
+    return window.PortalApp && window.PortalApp.Storage ? window.PortalApp.Storage : null;
+  }
+
+  function loadStatusMap() {
+    const store = getStore();
+    if (store && typeof store.load === "function") {
+      const m = store.load(STATUS_KEY);
+      if (m && typeof m === "object") return { ...m };
+      return {};
+    }
+    // Fallback (shouldn't happen in your app, but prevents total failure)
+    try {
+      const raw = localStorage.getItem(STATUS_KEY);
+      const obj = raw ? JSON.parse(raw) : {};
+      return (obj && typeof obj === "object") ? obj : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveStatusMap(map) {
+    const store = getStore();
+    if (store && typeof store.save === "function") {
+      store.save(STATUS_KEY, map);
+      return;
+    }
+    // Fallback only if Storage is missing
+    try { localStorage.setItem(STATUS_KEY, JSON.stringify(map || {})); } catch (_) {}
   }
 
   function jsonp(url, timeoutMs = DEFAULTS.timeoutMs) {
@@ -92,29 +124,65 @@
 
   function normalizeValue(v) {
     if (v === null || v === undefined) return "";
-    if (v instanceof Date) return v.toISOString();
     if (typeof v === "object") return JSON.stringify(v);
     return String(v);
   }
 
+  const STATUS_OPTIONS = [
+    { value: "", label: "(none)" },
+    { value: "awaiting_parts", label: "Awaiting Parts" },
+    { value: "on_order", label: "On Order" },
+    { value: "scheduled", label: "Scheduled" },
+    { value: "complete", label: "Complete" }
+  ];
+
+  const STATUS_CLASS_LIST = [
+    "status-awaiting_parts",
+    "status-on_order",
+    "status-scheduled",
+    "status-complete"
+  ];
+
+  function pillFor(status) {
+    if (status === "awaiting_parts") return { cls: "backlogStatus-awaiting_parts", text: "Awaiting Parts" };
+    if (status === "on_order") return { cls: "backlogStatus-on_order", text: "On Order" };
+    if (status === "scheduled") return { cls: "backlogStatus-scheduled", text: "Scheduled" };
+    // Complete = highlight row (no pill required per your spec)
+    return null;
+  }
+
+  function applyStatusToRow(rowEl, status) {
+    if (!rowEl) return;
+
+    // Clear old row status classes
+    for (const c of STATUS_CLASS_LIST) rowEl.classList.remove(c);
+
+    // Apply new
+    if (status) rowEl.classList.add("status-" + status);
+
+    // Pill slot (collapsed view)
+    const slot = rowEl.querySelector(".backlogStatusSlot");
+    if (slot) {
+      const p = pillFor(status);
+      if (p) {
+        slot.innerHTML = `<div class="backlogStatusPill ${p.cls}">${escapeHtml(p.text)}</div>`;
+      } else {
+        slot.innerHTML = "";
+      }
+    }
+  }
+
   function buildDetailsHtml(item, columns) {
     const raw = (item && typeof item === "object") ? item : {};
-    const task = pickTask(raw);
-    const desc = pickDesc(raw);
-
     const ignore = new Set([
-      "task", "description",
-      "Task", "Description", "Desc",
-      "Task ID", "TaskId", "Task Number", "Task #",
-      "id"
+      "task","description","Task","Description","Desc",
+      "Task ID","TaskId","Task Number","Task #","id"
     ]);
 
-    // If server sent column headers, use them for ordering.
     let keys = Array.isArray(columns) && columns.length
       ? columns.map(c => String(c || "").trim()).filter(Boolean)
       : Object.keys(raw);
 
-    // Remove the primary fields from the details list
     keys = keys.filter(k => !ignore.has(k));
 
     if (!keys.length) {
@@ -122,11 +190,9 @@
     }
 
     let html = `<div class="backlogCard">`;
-
     for (const k of keys) {
       const val = normalizeValue(raw[k]);
       const isEmpty = !val.trim();
-
       html += `
         <div class="backlogField">
           <div class="backlogLabel" title="${escapeHtml(k)}">${escapeHtml(k)}</div>
@@ -134,23 +200,11 @@
         </div>
       `;
     }
-
-    // If for some reason task/desc weren't part of headers and you still want them shown inside the card,
-    // uncomment these:
-    // html += `
-    //   <div class="backlogField">
-    //     <div class="backlogLabel">Task</div><div class="backlogValue">${escapeHtml(String(task))}</div>
-    //   </div>
-    //   <div class="backlogField">
-    //     <div class="backlogLabel">Description</div><div class="backlogValue">${escapeHtml(String(desc))}</div>
-    //   </div>
-    // `;
-
     html += `</div>`;
     return html;
   }
 
-  function render(host, items, columns) {
+  function render(host, items, columns, statusMap) {
     if (!host) return;
 
     if (!items || !items.length) {
@@ -161,43 +215,87 @@
     host.innerHTML = "";
 
     items.forEach((item, idx) => {
-      const task = String(pickTask(item) ?? "");
-      const desc = String(pickDesc(item) ?? "");
+      const taskRaw = String(pickTask(item) ?? "").trim();
+      const desc = String(pickDesc(item) ?? "").trim();
+
+      // Use Task as the key. If somehow blank, fall back to row index.
+      const taskKey = taskRaw || ("row_" + idx);
+
+      const status = (statusMap && typeof statusMap === "object") ? (statusMap[taskKey] || "") : "";
 
       const row = document.createElement("div");
       row.className = "backlogRow";
-      row.dataset.idx = String(idx);
+      row.dataset.taskKey = taskKey;
+
+      // Build dropdown options
+      const optionsHtml = STATUS_OPTIONS.map(o => {
+        const sel = (o.value === status) ? "selected" : "";
+        return `<option value="${escapeHtml(o.value)}" ${sel}>${escapeHtml(o.label)}</option>`;
+      }).join("");
 
       row.innerHTML = `
         <div class="backlogRowTop">
-          <div class="backlogTask">${escapeHtml(task)}</div>
+          <div class="backlogTask">${escapeHtml(taskRaw)}</div>
           <div class="backlogDesc">${escapeHtml(desc)}</div>
+          <div class="backlogStatusSlot"></div>
           <button class="backlogToggle" type="button" aria-expanded="false" aria-label="Expand backlog item">+</button>
         </div>
+
         <div class="backlogDetails">
+          <div class="backlogDetailsBar">
+            <select class="backlogStatusSelect" aria-label="Backlog status">
+              ${optionsHtml}
+            </select>
+          </div>
           ${buildDetailsHtml(item, columns)}
         </div>
       `;
 
       host.appendChild(row);
+      applyStatusToRow(row, status);
     });
 
-// Event delegation for toggles (bind once per host)
-if (!host.dataset.backlogBound) {
-  host.addEventListener("click", (e) => {
-    const btn = e.target && e.target.closest ? e.target.closest(".backlogToggle") : null;
-    if (!btn) return;
- 
-    const row = btn.closest(".backlogRow");
-    if (!row) return;
- 
-    const isExpanded = row.classList.toggle("is-expanded");
-    btn.textContent = isExpanded ? "-" : "+";
-    btn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
-  });
- 
-  host.dataset.backlogBound = "1";
-}
+    // Bind once. Not "once per click" (that was a mistake).
+    if (!host.dataset.backlogBound) {
+      host.addEventListener("click", (e) => {
+        const btn = e.target && e.target.closest ? e.target.closest(".backlogToggle") : null;
+        if (!btn) return;
+
+        const row = btn.closest(".backlogRow");
+        if (!row) return;
+
+        const isExpanded = row.classList.toggle("is-expanded");
+        btn.textContent = isExpanded ? "-" : "+";
+        btn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+      });
+
+      host.addEventListener("change", (e) => {
+        const sel = e.target && e.target.classList && e.target.classList.contains("backlogStatusSelect")
+          ? e.target
+          : null;
+        if (!sel) return;
+
+        const row = sel.closest(".backlogRow");
+        if (!row) return;
+
+        const taskKey = row.dataset.taskKey || "";
+        if (!taskKey) return;
+
+        const value = String(sel.value || "");
+        const map = loadStatusMap();
+
+        if (!value) {
+          delete map[taskKey];
+        } else {
+          map[taskKey] = value;
+        }
+
+        saveStatusMap(map);
+        applyStatusToRow(row, value);
+      });
+
+      host.dataset.backlogBound = "1";
+    }
   }
 
   async function load(hostId, options = {}) {
@@ -209,7 +307,6 @@ if (!host.dataset.backlogBound) {
     const cfg = getConfig();
     if (!cfg.webAppUrl || !cfg.token) {
       setMsg(host, "Backlog config missing (web app URL/token not found).");
-      console.warn("[Backlog] Missing PORTALSTATE_WEBAPP_URL / PORTALSTATE_TOKEN.");
       return;
     }
 
@@ -233,7 +330,8 @@ if (!host.dataset.backlogBound) {
       const items = Array.isArray(res.items) ? res.items : [];
       const columns = Array.isArray(res.columns) ? res.columns : null;
 
-      render(host, items, columns);
+      const statusMap = loadStatusMap();
+      render(host, items, columns, statusMap);
     } catch (err) {
       console.error("[Backlog] Load failed:", err);
       setMsg(host, "Backlog unavailable.");
