@@ -1299,3 +1299,21 @@ body{
   color: var(--goodText) !important;
   border-color: var(--goodBorder) !important;
 }
+/* ===== Backlog: COMPLETE highlight (hard override) ===== */
+
+.backlogRow.status-complete{
+  border-color: var(--goodBorder) !important;
+  background: rgba(11, 42, 18, 0.40) !important; /* green wash */
+}
+
+.backlogRow.status-complete .backlogRowTop{
+  background: rgba(11, 42, 18, 0.25) !important;
+}
+
+.backlogRow.status-complete .backlogTask{
+  color: var(--goodText) !important;
+}
+
+.backlogRow.status-complete .backlogDesc{
+  color: rgba(184, 255, 204, 0.85) !important;
+}
