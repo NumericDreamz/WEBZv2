@@ -343,3 +343,77 @@
     init: (hostId, options) => load(hostId, options)
   };
 })();
+
+/* Backlog: add a status column + keep description sane */
+.backlogRowTop{
+  grid-template-columns: 90px minmax(0, 1fr) auto 38px !important;
+}
+
+.backlogStatusSlot{
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+/* Pills */
+.backlogStatusPill{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.backlogStatus-awaiting_parts{
+  background: var(--badBg);
+  color: var(--badText);
+  border-color: var(--badBorder);
+}
+
+.backlogStatus-on_order{
+  background: #2a2400;
+  color: #ffe8a3;
+  border-color: #8a6a00;
+}
+
+.backlogStatus-scheduled{
+  background: var(--goodBg);
+  color: var(--goodText);
+  border-color: var(--goodBorder);
+}
+
+/* Complete = highlight entire line item green */
+.backlogRow.status-complete{
+  border-color: var(--goodBorder) !important;
+  background: rgba(11, 42, 18, 0.35) !important;
+}
+.backlogRow.status-complete .backlogRowTop{
+  background: rgba(11, 42, 18, 0.25);
+}
+.backlogRow.status-complete .backlogTask{
+  color: var(--goodText);
+}
+
+/* Expanded view control bar */
+.backlogDetailsBar{
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.backlogStatusSelect{
+  background: #0b0b0b;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-weight: 900;
+}
+.backlogStatusSelect:focus{
+  outline: none;
+  border-color: #555;
+}
