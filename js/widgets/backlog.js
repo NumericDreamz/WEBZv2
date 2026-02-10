@@ -1,6 +1,7 @@
-// js/widgets/backlog.js
 (function () {
   "use strict";
+
+  console.log("[Backlog] widget build 2026-02-10_01 loaded");
 
   const DEFAULTS = { limit: 50, timeoutMs: 10000 };
   const STATUS_KEY = "backlog_status_map_v1";
@@ -22,9 +23,10 @@
   }
 
   function getConfig() {
-    const webAppUrl = (window.PORTALSTATE_WEBAPP_URL || "").toString().trim();
-    const token = (window.PORTALSTATE_TOKEN || "").toString().trim();
-    return { webAppUrl, token };
+    return {
+      webAppUrl: (window.PORTALSTATE_WEBAPP_URL || "").toString().trim(),
+      token: (window.PORTALSTATE_TOKEN || "").toString().trim()
+    };
   }
 
   function getStore() {
@@ -35,10 +37,8 @@
     const store = getStore();
     if (store && typeof store.load === "function") {
       const m = store.load(STATUS_KEY);
-      if (m && typeof m === "object") return { ...m };
-      return {};
+      return (m && typeof m === "object") ? { ...m } : {};
     }
-    // Fallback (shouldn't happen in your app, but prevents total failure)
     try {
       const raw = localStorage.getItem(STATUS_KEY);
       const obj = raw ? JSON.parse(raw) : {};
@@ -54,7 +54,6 @@
       store.save(STATUS_KEY, map);
       return;
     }
-    // Fallback only if Storage is missing
     try { localStorage.setItem(STATUS_KEY, JSON.stringify(map || {})); } catch (_) {}
   }
 
@@ -147,29 +146,18 @@
     if (status === "awaiting_parts") return { cls: "backlogStatus-awaiting_parts", text: "Awaiting Parts" };
     if (status === "on_order") return { cls: "backlogStatus-on_order", text: "On Order" };
     if (status === "scheduled") return { cls: "backlogStatus-scheduled", text: "Scheduled" };
-    // Complete = highlight row (no pill required per your spec)
-    return null;
+    return null; // complete = highlight row
   }
 
   function applyStatusToRow(rowEl, status) {
-    if (!rowEl) return;
-
-    // Clear old row status classes
     for (const c of STATUS_CLASS_LIST) rowEl.classList.remove(c);
-
-    // Apply new
     if (status) rowEl.classList.add("status-" + status);
 
-    // Pill slot (collapsed view)
     const slot = rowEl.querySelector(".backlogStatusSlot");
-    if (slot) {
-      const p = pillFor(status);
-      if (p) {
-        slot.innerHTML = `<div class="backlogStatusPill ${p.cls}">${escapeHtml(p.text)}</div>`;
-      } else {
-        slot.innerHTML = "";
-      }
-    }
+    if (!slot) return;
+
+    const p = pillFor(status);
+    slot.innerHTML = p ? `<div class="backlogStatusPill ${p.cls}">${escapeHtml(p.text)}</div>` : "";
   }
 
   function buildDetailsHtml(item, columns) {
@@ -185,9 +173,7 @@
 
     keys = keys.filter(k => !ignore.has(k));
 
-    if (!keys.length) {
-      return `<div class="backlogMsg">No additional fields for this row.</div>`;
-    }
+    if (!keys.length) return `<div class="backlogMsg">No additional fields for this row.</div>`;
 
     let html = `<div class="backlogCard">`;
     for (const k of keys) {
@@ -197,41 +183,29 @@
         <div class="backlogField">
           <div class="backlogLabel" title="${escapeHtml(k)}">${escapeHtml(k)}</div>
           <div class="backlogValue ${isEmpty ? "is-empty" : ""}">${escapeHtml(isEmpty ? "—" : val)}</div>
-        </div>
-      `;
+        </div>`;
     }
     html += `</div>`;
     return html;
   }
 
   function render(host, items, columns, statusMap) {
-    if (!host) return;
-
-    if (!items || !items.length) {
-      setMsg(host, "No backlog items.");
-      return;
-    }
-
     host.innerHTML = "";
 
     items.forEach((item, idx) => {
       const taskRaw = String(pickTask(item) ?? "").trim();
       const desc = String(pickDesc(item) ?? "").trim();
-
-      // Use Task as the key. If somehow blank, fall back to row index.
       const taskKey = taskRaw || ("row_" + idx);
+      const status = statusMap[taskKey] || "";
 
-      const status = (statusMap && typeof statusMap === "object") ? (statusMap[taskKey] || "") : "";
-
-      const row = document.createElement("div");
-      row.className = "backlogRow";
-      row.dataset.taskKey = taskKey;
-
-      // Build dropdown options
       const optionsHtml = STATUS_OPTIONS.map(o => {
         const sel = (o.value === status) ? "selected" : "";
         return `<option value="${escapeHtml(o.value)}" ${sel}>${escapeHtml(o.label)}</option>`;
       }).join("");
+
+      const row = document.createElement("div");
+      row.className = "backlogRow";
+      row.dataset.taskKey = taskKey;
 
       row.innerHTML = `
         <div class="backlogRowTop">
@@ -255,12 +229,10 @@
       applyStatusToRow(row, status);
     });
 
-    // Bind once. Not "once per click" (that was a mistake).
     if (!host.dataset.backlogBound) {
       host.addEventListener("click", (e) => {
         const btn = e.target && e.target.closest ? e.target.closest(".backlogToggle") : null;
         if (!btn) return;
-
         const row = btn.closest(".backlogRow");
         if (!row) return;
 
@@ -270,25 +242,18 @@
       });
 
       host.addEventListener("change", (e) => {
-        const sel = e.target && e.target.classList && e.target.classList.contains("backlogStatusSelect")
-          ? e.target
-          : null;
+        const sel = e.target && e.target.classList && e.target.classList.contains("backlogStatusSelect") ? e.target : null;
         if (!sel) return;
 
         const row = sel.closest(".backlogRow");
         if (!row) return;
 
         const taskKey = row.dataset.taskKey || "";
-        if (!taskKey) return;
-
         const value = String(sel.value || "");
-        const map = loadStatusMap();
 
-        if (!value) {
-          delete map[taskKey];
-        } else {
-          map[taskKey] = value;
-        }
+        const map = loadStatusMap();
+        if (!value) delete map[taskKey];
+        else map[taskKey] = value;
 
         saveStatusMap(map);
         applyStatusToRow(row, value);
@@ -323,9 +288,7 @@
 
       const res = await jsonp(endpoint, DEFAULTS.timeoutMs);
 
-      if (!res || res.ok !== true) {
-        throw new Error(res && res.error ? res.error : "Bad backlog response");
-      }
+      if (!res || res.ok !== true) throw new Error(res && res.error ? res.error : "Bad backlog response");
 
       const items = Array.isArray(res.items) ? res.items : [];
       const columns = Array.isArray(res.columns) ? res.columns : null;
@@ -333,87 +296,12 @@
       const statusMap = loadStatusMap();
       render(host, items, columns, statusMap);
     } catch (err) {
-      console.error("[Backlog] Load failed:", err);
+      console.error("[Backlog] load failed:", err);
       setMsg(host, "Backlog unavailable.");
     }
   }
 
   window.PortalWidgets = window.PortalWidgets || {};
-  window.PortalWidgets.Backlog = {
-    init: (hostId, options) => load(hostId, options)
-  };
+  window.PortalWidgets.Backlog = { init: (hostId, options) => load(hostId, options) };
+
 })();
-
-/* Backlog: add a status column + keep description sane */
-.backlogRowTop{
-  grid-template-columns: 90px minmax(0, 1fr) auto 38px !important;
-}
-
-.backlogStatusSlot{
-  display: flex;
-  justify-content: flex-end;
-  min-width: 0;
-}
-
-/* Pills */
-.backlogStatusPill{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 900;
-  border: 1px solid transparent;
-  white-space: nowrap;
-}
-
-.backlogStatus-awaiting_parts{
-  background: var(--badBg);
-  color: var(--badText);
-  border-color: var(--badBorder);
-}
-
-.backlogStatus-on_order{
-  background: #2a2400;
-  color: #ffe8a3;
-  border-color: #8a6a00;
-}
-
-.backlogStatus-scheduled{
-  background: var(--goodBg);
-  color: var(--goodText);
-  border-color: var(--goodBorder);
-}
-
-/* Complete = highlight entire line item green */
-.backlogRow.status-complete{
-  border-color: var(--goodBorder) !important;
-  background: rgba(11, 42, 18, 0.35) !important;
-}
-.backlogRow.status-complete .backlogRowTop{
-  background: rgba(11, 42, 18, 0.25);
-}
-.backlogRow.status-complete .backlogTask{
-  color: var(--goodText);
-}
-
-/* Expanded view control bar */
-.backlogDetailsBar{
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 10px;
-}
-
-.backlogStatusSelect{
-  background: #0b0b0b;
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 12px;
-  padding: 8px 10px;
-  font-weight: 900;
-}
-.backlogStatusSelect:focus{
-  outline: none;
-  border-color: #555;
-}
