@@ -1031,6 +1031,41 @@ body{
 }
 
 
+
+.backlogRow{
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+}
+
+.backlogRow:hover{
+  border-color: #444;
+  background: #161616;
+}
+
+.backlogTask{
+  font-weight: 900;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backlogDesc{
+  font-size: 13px;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.backlogMsg{
+  padding: 6px 2px;
+  color: var(--muted);
+}
+
 /* ========================================================= */
 /* ======================= Backlog ========================= */
 /* ========================================================= */
@@ -1066,18 +1101,23 @@ body{
 }
 
 .backlogRow{
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 12px;
-  padding: 10px 10px;
   border-radius: 12px;
   background: var(--panel2);
   border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* Top line: Task + Description + toggle */
+.backlogRowTop{
+  display: grid;
+  grid-template-columns: 90px 1fr 38px;
+  gap: 12px;
+  padding: 5px 10px;
+  align-items: center;
 }
 
 .backlogRow:hover{
   border-color: #444;
-  background: #161616;
 }
 
 .backlogTask{
@@ -1094,7 +1134,187 @@ body{
   word-break: break-word;
 }
 
+.backlogToggle{
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  border-radius: 10px;
+  border: 1px solid var(--btnBorder);
+  background: var(--btn);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backlogToggle:hover{ background: var(--btnHover); }
+.backlogToggle:active{ transform: translateY(1px); }
+
+/* Expanded details area */
+.backlogDetails{
+  display: none;
+  padding: 10px 10px 12px 10px;
+  border-top: 1px solid var(--border);
+  background: #0b0b0b;
+}
+
+.backlogRow.is-expanded .backlogDetails{
+  display: block;
+}
+
+.backlogCard{
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.backlogField{
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.backlogLabel{
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backlogValue{
+  font-size: 12px;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.backlogValue.is-empty{
+  color: rgba(255,255,255,.45);
+}
+
 .backlogMsg{
   padding: 6px 2px;
   color: var(--muted);
+}
+
+/* ===== Backlog layout hard overrides (fixes narrow desc + button drift) ===== */
+
+.backlogRow{
+  display: block !important;   /* kills old "display:grid" versions */
+}
+
+.backlogRowTop{
+  display: grid !important;
+  grid-template-columns: 90px minmax(0, 1fr) 38px !important;
+  gap: 12px;
+  padding: 5px 10px;
+  align-items: center;
+}
+
+.backlogTask,
+.backlogDesc{
+  min-width: 0;               /* allows proper shrinking without 1-char wrapping */
+}
+
+.backlogDesc{
+  white-space: normal;
+  overflow-wrap: anywhere;    /* wrap like a normal adult */
+  word-break: normal;
+}
+
+/* ===== Backlog: force toggle to stay on the right ===== */
+
+.backlogRowTop{
+  display: grid !important;
+  grid-template-columns: 90px minmax(0, 1fr) auto 38px !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.backlogTask,
+.backlogDesc,
+.backlogStatusSlot{
+  min-width: 0; /* prevents insane wrapping */
+}
+
+.backlogToggle{
+  justify-self: end !important;
+  align-self: center !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+
+.backlogToggle{
+  justify-self: end;          /* hard-pin to the right edge */
+}
+/* ===== Backlog Status Pills (hard override) ===== */
+
+.backlogStatusSlot{
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  min-width: 0 !important;
+}
+
+.backlogStatusPill{
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 4px 8px !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  border: 1px solid transparent !important;
+  white-space: nowrap !important;
+}
+
+/* Red */
+.backlogStatusPill.backlogStatus-awaiting_parts{
+  background: var(--badBg) !important;
+  color: var(--badText) !important;
+  border-color: var(--badBorder) !important;
+}
+
+/* Yellow */
+.backlogStatusPill.backlogStatus-on_order{
+  background: #2a2400 !important;
+  color: #ffe8a3 !important;
+  border-color: #8a6a00 !important;
+}
+
+/* Green */
+.backlogStatusPill.backlogStatus-scheduled{
+  background: var(--goodBg) !important;
+  color: var(--goodText) !important;
+  border-color: var(--goodBorder) !important;
+}
+/* ===== Backlog: COMPLETE highlight (hard override) ===== */
+
+.backlogRow.status-complete{
+  border-color: var(--goodBorder) !important;
+  background: rgba(11, 42, 18, 0.40) !important; /* green wash */
+}
+
+.backlogRow.status-complete .backlogRowTop{
+  background: rgba(11, 42, 18, 0.25) !important;
+}
+
+.backlogRow.status-complete .backlogTask{
+  color: var(--goodText) !important;
+}
+
+.backlogRow.status-complete .backlogDesc{
+  color: rgba(184, 255, 204, 0.85) !important;
 }

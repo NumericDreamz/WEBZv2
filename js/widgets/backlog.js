@@ -1,21 +1,12 @@
-// js/widgets/backlog.js
-// Pulls backlog items from the GAS web app (action=backlog) via JSONP
-// Renders Task + Description into #backlogList
-
 (function () {
   "use strict";
 
-  const HOST_ID = "backlogList";
-  const LIMIT = 50;
-  const TIMEOUT_MS = 10000;
+  console.log("[Backlog] widget build 2026-02-10_01 loaded");
 
-  function el(id) { return document.getElementById(id); }
+  const DEFAULTS = { limit: 50, timeoutMs: 10000 };
+  const STATUS_KEY = "backlog_status_map_v1";
 
-  function setMsg(text) {
-    const host = el(HOST_ID);
-    if (!host) return;
-    host.innerHTML = `<div class="backlogMsg">${escapeHtml(text)}</div>`;
-  }
+  function $(id) { return document.getElementById(id); }
 
   function escapeHtml(s) {
     return String(s ?? "")
@@ -26,40 +17,47 @@
       .replaceAll("'", "&#039;");
   }
 
-  function getConfig() {
-    // Try globals first, then CONFIG object, then localStorage.
-    const candidates = [
-      { url: "PORTALSTATE_WEBAPP_URL", token: "PORTALSTATE_TOKEN" },
-      { url: "GSCRIPT_WEBAPP_URL",     token: "GSCRIPT_TOKEN" },
-      { url: "WEBAPP_URL",             token: "TOKEN" },
-
-      // common “human” names people use in quick hacks
-      { url: "portalStateUrl",         token: "portalStateToken" },
-      { url: "portalStateWebAppUrl",   token: "portalStateSecret" }
-    ];
-
-    for (const c of candidates) {
-      const url =
-        window[c.url] ||
-        (window.CONFIG && window.CONFIG[c.url]) ||
-        localStorage.getItem(c.url) ||
-        localStorage.getItem(c.url.toUpperCase()) ||
-        "";
-
-      const token =
-        window[c.token] ||
-        (window.CONFIG && window.CONFIG[c.token]) ||
-        localStorage.getItem(c.token) ||
-        localStorage.getItem(c.token.toUpperCase()) ||
-        "";
-
-      if (url && token) return { url, token };
-    }
-
-    return { url: "", token: "" };
+  function setMsg(host, msg) {
+    if (!host) return;
+    host.innerHTML = `<div class="backlogMsg">${escapeHtml(msg)}</div>`;
   }
 
-  function jsonp(baseUrl) {
+  function getConfig() {
+    return {
+      webAppUrl: (window.PORTALSTATE_WEBAPP_URL || "").toString().trim(),
+      token: (window.PORTALSTATE_TOKEN || "").toString().trim()
+    };
+  }
+
+  function getStore() {
+    return window.PortalApp && window.PortalApp.Storage ? window.PortalApp.Storage : null;
+  }
+
+  function loadStatusMap() {
+    const store = getStore();
+    if (store && typeof store.load === "function") {
+      const m = store.load(STATUS_KEY);
+      return (m && typeof m === "object") ? { ...m } : {};
+    }
+    try {
+      const raw = localStorage.getItem(STATUS_KEY);
+      const obj = raw ? JSON.parse(raw) : {};
+      return (obj && typeof obj === "object") ? obj : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveStatusMap(map) {
+    const store = getStore();
+    if (store && typeof store.save === "function") {
+      store.save(STATUS_KEY, map);
+      return;
+    }
+    try { localStorage.setItem(STATUS_KEY, JSON.stringify(map || {})); } catch (_) {}
+  }
+
+  function jsonp(url, timeoutMs = DEFAULTS.timeoutMs) {
     return new Promise((resolve, reject) => {
       const cbName = "__backlog_cb_" + Date.now() + "_" + Math.floor(Math.random() * 1e6);
       const script = document.createElement("script");
@@ -75,7 +73,7 @@
         done = true;
         cleanup();
         reject(new Error("JSONP timeout"));
-      }, TIMEOUT_MS);
+      }, timeoutMs);
 
       window[cbName] = (data) => {
         if (done) return;
@@ -85,8 +83,8 @@
         resolve(data);
       };
 
-      const join = baseUrl.includes("?") ? "&" : "?";
-      script.src = baseUrl + join + "callback=" + encodeURIComponent(cbName);
+      const join = url.includes("?") ? "&" : "?";
+      script.src = url + join + "callback=" + encodeURIComponent(cbName);
 
       script.onerror = () => {
         if (done) return;
@@ -100,75 +98,210 @@
     });
   }
 
-  function render(items) {
-    const host = el(HOST_ID);
-    if (!host) return;
+  function pickTask(item) {
+    return (
+      item?.task ??
+      item?.Task ??
+      item?.["Task ID"] ??
+      item?.["TaskId"] ??
+      item?.["Task Number"] ??
+      item?.["Task #"] ??
+      item?.id ??
+      ""
+    );
+  }
 
-    if (!items || !items.length) {
-      host.innerHTML = `<div class="backlogMsg">No backlog items.</div>`;
-      return;
+  function pickDesc(item) {
+    return (
+      item?.description ??
+      item?.Description ??
+      item?.Desc ??
+      item?.["Task Description"] ??
+      ""
+    );
+  }
+
+  function normalizeValue(v) {
+    if (v === null || v === undefined) return "";
+    if (typeof v === "object") return JSON.stringify(v);
+    return String(v);
+  }
+
+  const STATUS_OPTIONS = [
+    { value: "", label: "(none)" },
+    { value: "awaiting_parts", label: "Awaiting Parts" },
+    { value: "on_order", label: "On Order" },
+    { value: "scheduled", label: "Scheduled" },
+    { value: "complete", label: "Complete" }
+  ];
+
+  const STATUS_CLASS_LIST = [
+    "status-awaiting_parts",
+    "status-on_order",
+    "status-scheduled",
+    "status-complete"
+  ];
+
+  function pillFor(status) {
+    if (status === "awaiting_parts") return { cls: "backlogStatus-awaiting_parts", text: "Awaiting Parts" };
+    if (status === "on_order") return { cls: "backlogStatus-on_order", text: "On Order" };
+    if (status === "scheduled") return { cls: "backlogStatus-scheduled", text: "Scheduled" };
+    return null; // complete = highlight row
+  }
+
+  function applyStatusToRow(rowEl, status) {
+    for (const c of STATUS_CLASS_LIST) rowEl.classList.remove(c);
+    if (status) rowEl.classList.add("status-" + status);
+
+    const slot = rowEl.querySelector(".backlogStatusSlot");
+    if (!slot) return;
+
+    const p = pillFor(status);
+    slot.innerHTML = p ? `<div class="backlogStatusPill ${p.cls}">${escapeHtml(p.text)}</div>` : "";
+  }
+
+  function buildDetailsHtml(item, columns) {
+    const raw = (item && typeof item === "object") ? item : {};
+    const ignore = new Set([
+      "task","description","Task","Description","Desc",
+      "Task ID","TaskId","Task Number","Task #","id"
+    ]);
+
+    let keys = Array.isArray(columns) && columns.length
+      ? columns.map(c => String(c || "").trim()).filter(Boolean)
+      : Object.keys(raw);
+
+    keys = keys.filter(k => !ignore.has(k));
+
+    if (!keys.length) return `<div class="backlogMsg">No additional fields for this row.</div>`;
+
+    let html = `<div class="backlogCard">`;
+    for (const k of keys) {
+      const val = normalizeValue(raw[k]);
+      const isEmpty = !val.trim();
+      html += `
+        <div class="backlogField">
+          <div class="backlogLabel" title="${escapeHtml(k)}">${escapeHtml(k)}</div>
+          <div class="backlogValue ${isEmpty ? "is-empty" : ""}">${escapeHtml(isEmpty ? "—" : val)}</div>
+        </div>`;
     }
+    html += `</div>`;
+    return html;
+  }
 
+  function render(host, items, columns, statusMap) {
     host.innerHTML = "";
 
-    for (const it of items) {
-      const task = (it && it.task) ? String(it.task) : "";
-      const desc = (it && it.description) ? String(it.description) : "";
+    items.forEach((item, idx) => {
+      const taskRaw = String(pickTask(item) ?? "").trim();
+      const desc = String(pickDesc(item) ?? "").trim();
+      const taskKey = taskRaw || ("row_" + idx);
+      const status = statusMap[taskKey] || "";
+
+      const optionsHtml = STATUS_OPTIONS.map(o => {
+        const sel = (o.value === status) ? "selected" : "";
+        return `<option value="${escapeHtml(o.value)}" ${sel}>${escapeHtml(o.label)}</option>`;
+      }).join("");
 
       const row = document.createElement("div");
       row.className = "backlogRow";
+      row.dataset.taskKey = taskKey;
 
-      const left = document.createElement("div");
-      left.className = "backlogTask";
-      left.textContent = task;
+      row.innerHTML = `
+        <div class="backlogRowTop">
+          <div class="backlogTask">${escapeHtml(taskRaw)}</div>
+          <div class="backlogDesc">${escapeHtml(desc)}</div>
+          <div class="backlogStatusSlot"></div>
+          <button class="backlogToggle" type="button" aria-expanded="false" aria-label="Expand backlog item">+</button>
+        </div>
 
-      const right = document.createElement("div");
-      right.className = "backlogDesc";
-      right.textContent = desc;
+        <div class="backlogDetails">
+          <div class="backlogDetailsBar">
+            <select class="backlogStatusSelect" aria-label="Backlog status">
+              ${optionsHtml}
+            </select>
+          </div>
+          ${buildDetailsHtml(item, columns)}
+        </div>
+      `;
 
-      row.appendChild(left);
-      row.appendChild(right);
       host.appendChild(row);
+      applyStatusToRow(row, status);
+    });
+
+    if (!host.dataset.backlogBound) {
+      host.addEventListener("click", (e) => {
+        const btn = e.target && e.target.closest ? e.target.closest(".backlogToggle") : null;
+        if (!btn) return;
+        const row = btn.closest(".backlogRow");
+        if (!row) return;
+
+        const isExpanded = row.classList.toggle("is-expanded");
+        btn.textContent = isExpanded ? "-" : "+";
+        btn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+      });
+
+      host.addEventListener("change", (e) => {
+        const sel = e.target && e.target.classList && e.target.classList.contains("backlogStatusSelect") ? e.target : null;
+        if (!sel) return;
+
+        const row = sel.closest(".backlogRow");
+        if (!row) return;
+
+        const taskKey = row.dataset.taskKey || "";
+        const value = String(sel.value || "");
+
+        const map = loadStatusMap();
+        if (!value) delete map[taskKey];
+        else map[taskKey] = value;
+
+        saveStatusMap(map);
+        applyStatusToRow(row, value);
+      });
+
+      host.dataset.backlogBound = "1";
     }
   }
 
-  async function loadBacklog() {
-    const host = el(HOST_ID);
+  async function load(hostId, options = {}) {
+    const host = $(hostId);
     if (!host) return;
 
-    host.innerHTML = `<div class="backlogMsg">Loading backlog…</div>`;
+    setMsg(host, "Loading backlog…");
 
     const cfg = getConfig();
-    if (!cfg.url || !cfg.token) {
-      console.warn("[Backlog] Missing web app URL/token. Set window.PORTALSTATE_WEBAPP_URL + window.PORTALSTATE_TOKEN or store them in localStorage with those keys.");
-      setMsg("Backlog config missing (web app URL/token not found).");
+    if (!cfg.webAppUrl || !cfg.token) {
+      setMsg(host, "Backlog config missing (web app URL/token not found).");
       return;
     }
 
+    const limit = Number.isFinite(options.limit) ? options.limit : DEFAULTS.limit;
+
     try {
-      // GAS endpoint must support: ?action=backlog&token=...&limit=...&callback=...
-      const url =
-        cfg.url +
-        "?action=backlog" +
+      const endpoint =
+        cfg.webAppUrl +
+        (cfg.webAppUrl.includes("?") ? "&" : "?") +
+        "action=backlog" +
         "&token=" + encodeURIComponent(cfg.token) +
-        "&limit=" + encodeURIComponent(String(LIMIT));
+        "&limit=" + encodeURIComponent(String(limit)) +
+        "&_=" + Date.now();
 
-      const res = await jsonp(url);
+      const res = await jsonp(endpoint, DEFAULTS.timeoutMs);
 
-      if (!res || res.ok !== true) {
-        throw new Error(res && res.error ? res.error : "Bad backlog response");
-      }
+      if (!res || res.ok !== true) throw new Error(res && res.error ? res.error : "Bad backlog response");
 
-      render(res.items || []);
+      const items = Array.isArray(res.items) ? res.items : [];
+      const columns = Array.isArray(res.columns) ? res.columns : null;
+
+      const statusMap = loadStatusMap();
+      render(host, items, columns, statusMap);
     } catch (err) {
-      console.error("[Backlog] Load failed:", err);
-      setMsg("Backlog unavailable.");
+      console.error("[Backlog] load failed:", err);
+      setMsg(host, "Backlog unavailable.");
     }
   }
 
-  // Run after DOM is ready (defer scripts run after parsing anyway, but this avoids race conditions)
-  window.addEventListener("DOMContentLoaded", loadBacklog);
+  window.PortalWidgets = window.PortalWidgets || {};
+  window.PortalWidgets.Backlog = { init: (hostId, options) => load(hostId, options) };
 
-  // Optional: expose a manual refresh hook for later
-  window.BacklogWidget = { loadBacklog };
 })();
