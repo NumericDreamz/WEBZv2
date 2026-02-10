@@ -1031,6 +1031,41 @@ body{
 }
 
 
+
+.backlogRow{
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+}
+
+.backlogRow:hover{
+  border-color: #444;
+  background: #161616;
+}
+
+.backlogTask{
+  font-weight: 900;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backlogDesc{
+  font-size: 13px;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.backlogMsg{
+  padding: 6px 2px;
+  color: var(--muted);
+}
+
 /* ========================================================= */
 /* ======================= Backlog ========================= */
 /* ========================================================= */
@@ -1066,18 +1101,23 @@ body{
 }
 
 .backlogRow{
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 12px;
-  padding: 10px 10px;
   border-radius: 12px;
   background: var(--panel2);
   border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* Top line: Task + Description + toggle */
+.backlogRowTop{
+  display: grid;
+  grid-template-columns: 90px 1fr 38px;
+  gap: 12px;
+  padding: 10px 10px;
+  align-items: center;
 }
 
 .backlogRow:hover{
   border-color: #444;
-  background: #161616;
 }
 
 .backlogTask{
@@ -1092,6 +1132,72 @@ body{
   font-size: 13px;
   color: var(--muted);
   word-break: break-word;
+}
+
+.backlogToggle{
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--btnBorder);
+  background: var(--btn);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backlogToggle:hover{ background: var(--btnHover); }
+.backlogToggle:active{ transform: translateY(1px); }
+
+/* Expanded details area */
+.backlogDetails{
+  display: none;
+  padding: 10px 10px 12px 10px;
+  border-top: 1px solid var(--border);
+  background: #0b0b0b;
+}
+
+.backlogRow.is-expanded .backlogDetails{
+  display: block;
+}
+
+.backlogCard{
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.backlogField{
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.backlogLabel{
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backlogValue{
+  font-size: 12px;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.backlogValue.is-empty{
+  color: rgba(255,255,255,.45);
 }
 
 .backlogMsg{
