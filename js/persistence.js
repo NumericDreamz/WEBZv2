@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  console.log("[Portal] persistence.js build 2026-01-30_01");
+  console.log("[Portal] persistence.js build 2026-02-09_01");
 
   const REMOTE = {
     url: "https://script.google.com/macros/s/AKfycbzdytDOr7q5IhVn-WroARALOGX7lwXK3fBc2zb6Zi63e1h3_jSQ-0PJ9Zv4HQH1DFo/exec",
@@ -9,6 +9,32 @@
     token: "h0wD0T_T_3l1TtLcR0C0D1L3",
     timeoutMs: 8000
   };
+
+  // ---------------------------------------------------------
+  // Expose remote config for other widgets (Backlog, etc.)
+  // config.js can override these if it loads earlier.
+  // ---------------------------------------------------------
+  try {
+    window.PORTALSTATE_WEBAPP_URL = window.PORTALSTATE_WEBAPP_URL || REMOTE.url;
+    window.PORTALSTATE_TOKEN = window.PORTALSTATE_TOKEN || REMOTE.token;
+    window.PORTALSTATE_DASHBOARD_ID = window.PORTALSTATE_DASHBOARD_ID || REMOTE.dashboardId;
+
+    // Also mirror to localStorage for “dumb” widgets that only look there
+    localStorage.setItem("PORTALSTATE_WEBAPP_URL", window.PORTALSTATE_WEBAPP_URL);
+    localStorage.setItem("PORTALSTATE_TOKEN", window.PORTALSTATE_TOKEN);
+    localStorage.setItem("PORTALSTATE_DASHBOARD_ID", window.PORTALSTATE_DASHBOARD_ID);
+  } catch (_) {
+    // If localStorage is blocked, whatever. We'll still have window vars.
+  }
+
+  function getConfig() {
+    return {
+      webAppUrl: window.PORTALSTATE_WEBAPP_URL || REMOTE.url,
+      token: window.PORTALSTATE_TOKEN || REMOTE.token,
+      dashboardId: window.PORTALSTATE_DASHBOARD_ID || REMOTE.dashboardId,
+      timeoutMs: REMOTE.timeoutMs
+    };
+  }
 
   function jsonpGet(url, timeoutMs) {
     return new Promise((resolve) => {
@@ -42,25 +68,27 @@
   }
 
   async function getState() {
+    const cfg = getConfig();
     const url =
-      `${REMOTE.url}?action=get` +
-      `&dashboardId=${encodeURIComponent(REMOTE.dashboardId)}` +
-      `&token=${encodeURIComponent(REMOTE.token)}` +
+      `${cfg.webAppUrl}?action=get` +
+      `&dashboardId=${encodeURIComponent(cfg.dashboardId)}` +
+      `&token=${encodeURIComponent(cfg.token)}` +
       `&_=${Date.now()}`; // cache buster
 
-    const res = await jsonpGet(url, REMOTE.timeoutMs);
+    const res = await jsonpGet(url, cfg.timeoutMs);
     return res;
   }
 
   async function setState(stateObj) {
+    const cfg = getConfig();
     const body =
       "action=set" +
-      `&dashboardId=${encodeURIComponent(REMOTE.dashboardId)}` +
-      `&token=${encodeURIComponent(REMOTE.token)}` +
+      `&dashboardId=${encodeURIComponent(cfg.dashboardId)}` +
+      `&token=${encodeURIComponent(cfg.token)}` +
       `&payload=${encodeURIComponent(JSON.stringify(stateObj || {}))}`;
 
     try {
-      const r = await fetch(REMOTE.url, {
+      const r = await fetch(cfg.webAppUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
         body
@@ -76,5 +104,5 @@
   }
 
   window.PortalApp = window.PortalApp || {};
-  window.PortalApp.Persistence = { getState, setState };
+  window.PortalApp.Persistence = { getState, setState, getConfig };
 })();
