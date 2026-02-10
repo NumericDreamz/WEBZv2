@@ -1204,3 +1204,32 @@ body{
   padding: 6px 2px;
   color: var(--muted);
 }
+
+/* ===== Backlog layout hard overrides (fixes narrow desc + button drift) ===== */
+
+.backlogRow{
+  display: block !important;   /* kills old "display:grid" versions */
+}
+
+.backlogRowTop{
+  display: grid !important;
+  grid-template-columns: 90px minmax(0, 1fr) 38px !important;
+  gap: 12px;
+  padding: 10px 10px;
+  align-items: center;
+}
+
+.backlogTask,
+.backlogDesc{
+  min-width: 0;               /* allows proper shrinking without 1-char wrapping */
+}
+
+.backlogDesc{
+  white-space: normal;
+  overflow-wrap: anywhere;    /* wrap like a normal adult */
+  word-break: normal;
+}
+
+.backlogToggle{
+  justify-self: end;          /* hard-pin to the right edge */
+}
