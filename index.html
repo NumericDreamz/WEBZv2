@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="css/styles.css" />
 
   <!-- JS modules (plain old script files, no bundler, no drama) -->
+  <script src="js/config.js?v=20260209_1" defer></script>
   <script src="js/storage.js?v=20260208_1" defer></script>
   <script src="js/persistence.js?v=20260208_1" defer></script>
 
@@ -18,6 +19,9 @@
   <script src="js/widgets/recentTasks.js?v=20260208_1" defer></script>
   <script src="js/widgets/tier1Briefing.js?v=20260208_1" defer></script>
 
+  <!-- Backlog widget loader -->
+  <script src="js/widgets/backlog.js?v=20260209_1" defer></script>
+
   <script src="js/app.js?v=20260208_1" defer></script>
 </head>
 
@@ -25,6 +29,14 @@
   <div class="logo">
     <img src="images/logo.png" alt="Company Logo">
   </div>
+
+  <!-- ================== BETA MARKER START (REMOVE WHEN STABLE) ================== -->
+  <div id="atsBetaMarker" style="text-align:center; margin-top:6px; margin-bottom:2px;">
+    <div style="height:1px; width:140px; margin:0 auto 3px auto; background:currentColor; opacity:0.35;"></div>
+    <div style="font-weight:800; letter-spacing:4px; font-size:12px; opacity:0.9;">BETA</div>
+    <div style="height:1px; width:140px; margin:3px auto 0 auto; background:currentColor; opacity:0.35;"></div>
+  </div>
+  <!-- =================== BETA MARKER END (REMOVE WHEN STABLE) =================== -->
 
   <div class="page-layout">
 
@@ -68,9 +80,6 @@
       </div>
 
       <!-- ========================================================= -->
-      <!-- CENTER COLUMN WIDGETS -->
-      <!-- ========================================================= -->
-      <!-- ========================================================= -->
       <!-- CENTER WIDGETS ROW -->
       <!-- ========================================================= -->
       <div class="center-widgets-row">
@@ -78,7 +87,16 @@
         <div id="tier1-briefing-slot" class="center-widget-slot"></div>
       </div>
 
-<!-- EVERYTHING ELSE: tucked into a dropdown (now at the bottom) -->
+      <!-- ================== BACKLOG WIDGET START ================== -->
+      <section id="backlogWidget" class="widget">
+        <div class="widgetHeader">
+          <div class="widgetTitle">Backlog</div>
+        </div>
+        <div id="backlogList" class="backlogList">Loading backlog…</div>
+      </section>
+      <!-- ================== BACKLOG WIDGET END ================== -->
+
+      <!-- EVERYTHING ELSE: tucked into a dropdown (now at the bottom) -->
       <details class="more-links" id="more-links">
         <summary>More Links</summary>
 

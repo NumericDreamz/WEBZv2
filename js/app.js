@@ -32,6 +32,9 @@
       window.PortalWidgets.RecentTasks?.init("recent-tasks-slot");
       window.PortalWidgets.Tier1Briefing?.init("tier1-briefing-slot");
 
+      // ✅ Backlog widget (fills #backlogList inside your existing section)
+      window.PortalWidgets.Backlog?.init("backlogList", { limit: 50 });
+
       console.log("[Portal] boot complete");
     } catch (err) {
       console.error("[Portal] boot crashed:", err);

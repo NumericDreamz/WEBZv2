@@ -1,14 +1,45 @@
 (function () {
   "use strict";
 
-  console.log("[Portal] persistence.js build 2026-01-30_01");
+  console.log("[Portal] persistence.js build 2026-02-09_02");
 
-  const REMOTE = {
-    url: "https://script.google.com/macros/s/AKfycbzdytDOr7q5IhVn-WroARALOGX7lwXK3fBc2zb6Zi63e1h3_jSQ-0PJ9Zv4HQH1DFo/exec",
+  // ---------------------------------------------------------
+  // Canonical config source:
+  //   js/config.js should set:
+  //     window.PORTALSTATE_WEBAPP_URL
+  //     window.PORTALSTATE_TOKEN
+  //     window.PORTALSTATE_DASHBOARD_ID (optional)
+  //
+  // This file does NOT hardcode secrets anymore.
+  // ---------------------------------------------------------
+
+  const DEFAULTS = {
     dashboardId: "ats-portal",
-    token: "h0wD0T_T_3l1TtLcR0C0D1L3",
     timeoutMs: 8000
   };
+
+  function getConfig() {
+    const webAppUrl = (window.PORTALSTATE_WEBAPP_URL || "").toString().trim();
+    const token = (window.PORTALSTATE_TOKEN || "").toString().trim();
+    const dashboardId = (window.PORTALSTATE_DASHBOARD_ID || DEFAULTS.dashboardId).toString().trim();
+
+    return {
+      webAppUrl,
+      token,
+      dashboardId,
+      timeoutMs: DEFAULTS.timeoutMs
+    };
+  }
+
+  function ensureConfigOrThrow() {
+    const cfg = getConfig();
+    if (!cfg.webAppUrl || !cfg.token) {
+      const msg = "[Portal] Missing PORTALSTATE_WEBAPP_URL / PORTALSTATE_TOKEN. Check js/config.js + script load order.";
+      console.error(msg, cfg);
+      throw new Error(msg);
+    }
+    return cfg;
+  }
 
   function jsonpGet(url, timeoutMs) {
     return new Promise((resolve) => {
@@ -42,31 +73,33 @@
   }
 
   async function getState() {
+    const cfg = ensureConfigOrThrow();
+
     const url =
-      `${REMOTE.url}?action=get` +
-      `&dashboardId=${encodeURIComponent(REMOTE.dashboardId)}` +
-      `&token=${encodeURIComponent(REMOTE.token)}` +
+      `${cfg.webAppUrl}?action=get` +
+      `&dashboardId=${encodeURIComponent(cfg.dashboardId)}` +
+      `&token=${encodeURIComponent(cfg.token)}` +
       `&_=${Date.now()}`; // cache buster
 
-    const res = await jsonpGet(url, REMOTE.timeoutMs);
-    return res;
+    return await jsonpGet(url, cfg.timeoutMs);
   }
 
   async function setState(stateObj) {
+    const cfg = ensureConfigOrThrow();
+
     const body =
       "action=set" +
-      `&dashboardId=${encodeURIComponent(REMOTE.dashboardId)}` +
-      `&token=${encodeURIComponent(REMOTE.token)}` +
+      `&dashboardId=${encodeURIComponent(cfg.dashboardId)}` +
+      `&token=${encodeURIComponent(cfg.token)}` +
       `&payload=${encodeURIComponent(JSON.stringify(stateObj || {}))}`;
 
     try {
-      const r = await fetch(REMOTE.url, {
+      const r = await fetch(cfg.webAppUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
         body
       });
 
-      // Apps Script returns JSON: { ok:true }
       let data = null;
       try { data = await r.json(); } catch (_) {}
       return data || { ok: r.ok };
@@ -76,5 +109,5 @@
   }
 
   window.PortalApp = window.PortalApp || {};
-  window.PortalApp.Persistence = { getState, setState };
+  window.PortalApp.Persistence = { getState, setState, getConfig };
 })();

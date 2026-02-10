@@ -1029,3 +1029,72 @@ body{
   flex: 1 1 320px;
   min-width: 260px;
 }
+
+
+/* ========================================================= */
+/* ======================= Backlog ========================= */
+/* ========================================================= */
+
+.widget{
+  margin: 0 10px 10px;
+  padding: 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  overflow: hidden;
+}
+
+.widgetHeader{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.widgetTitle{
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+.backlogList{
+  display: grid;
+  gap: 10px;
+}
+
+.backlogRow{
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+}
+
+.backlogRow:hover{
+  border-color: #444;
+  background: #161616;
+}
+
+.backlogTask{
+  font-weight: 900;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backlogDesc{
+  font-size: 13px;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.backlogMsg{
+  padding: 6px 2px;
+  color: var(--muted);
+}

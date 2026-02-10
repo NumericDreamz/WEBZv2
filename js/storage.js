@@ -3,7 +3,7 @@ window.PortalApp = window.PortalApp || {};
 PortalApp.Storage = (function () {
   "use strict";
 
-  console.log("[Portal] storage.js build 2026-02-07_01");
+  console.log("[Portal] storage.js build 2026-02-09_01");
 
   const MASTER_KEY = "ats_portal_state_v1";
   const REMOTE_CACHE_KEY = "portal_state_cache_v1";
@@ -88,6 +88,24 @@ PortalApp.Storage = (function () {
     const m = ensureMeta(master || {});
     localStorage.setItem(MASTER_KEY, JSON.stringify(m));
     mirrorRemoteCache(m);
+  }
+
+  // Canonical config accessor.
+  // Does NOT store secrets here. It just reads what config.js (or Persistence) already set.
+  function getConfig() {
+    const p = window.PortalApp?.Persistence;
+    const pcfg = (p && typeof p.getConfig === "function") ? p.getConfig() : null;
+
+    const webAppUrl =
+      (window.PORTALSTATE_WEBAPP_URL || window.GSCRIPT_WEBAPP_URL || pcfg?.webAppUrl || pcfg?.url || "").toString().trim();
+
+    const token =
+      (window.PORTALSTATE_TOKEN || window.GSCRIPT_TOKEN || pcfg?.token || pcfg?.secret || "").toString().trim();
+
+    const dashboardId =
+      (window.PORTALSTATE_DASHBOARD_ID || pcfg?.dashboardId || "ats-portal").toString().trim();
+
+    return { webAppUrl, token, dashboardId };
   }
 
   async function pushNow(master) {
@@ -212,5 +230,5 @@ PortalApp.Storage = (function () {
     return pulled;
   }
 
-  return { load, save, exportAll, importAll, init, forcePush, forcePull };
+  return { load, save, exportAll, importAll, init, forcePush, forcePull, getConfig };
 })();
