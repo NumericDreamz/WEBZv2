@@ -25,7 +25,7 @@
       key: "beta",
       label: "BETA",
       dashboardId: "ats-portal-beta",
-      webAppUrl: "https://script.google.com/macros/s/AKfycbzdytDOr7q5IhVn-WroARALOGX7lwXK3fBc2zb6Zi63e1h3_jSQ-0PJ9Zv4HQH1DFo/exec",
+      webAppUrl: "https://script.google.com/macros/s/AKfycbyf79-nYORAVa70YqcT6UT-Cf7r4CjZis-xq9sjQP7kBIeRG9sfjZ_bazxxOtI5tRcv/exec",
       token: "h0wD0T_T_3l1TtLcR0C0D1L3"
     }
   };
