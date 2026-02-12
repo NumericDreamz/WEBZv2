@@ -3,7 +3,7 @@ window.PortalApp = window.PortalApp || {};
 PortalApp.Storage = (function () {
   "use strict";
 
-  console.log("[Portal] storage.js build 2026-02-09_01");
+  console.log("[Portal] storage.js build 2026-02-12_02");
 
   const MASTER_KEY = "ats_portal_state_v1";
   const REMOTE_CACHE_KEY = "portal_state_cache_v1";
@@ -27,19 +27,18 @@ PortalApp.Storage = (function () {
 
   function ensureMeta(master) {
     if (!master || typeof master !== "object") master = {};
-    if (!master[META_KEY] || typeof master[META_KEY] !== "object") master[META_KEY] = {};
-    if (typeof master[META_KEY].updatedAt !== "number") master[META_KEY].updatedAt = 0;
-    if (!master[META_KEY].deviceId) master[META_KEY].deviceId = uid();
-    return master;
-  }
 
-  function metaUpdatedAt(obj) {
-    try {
-      const t = obj && obj[META_KEY] && typeof obj[META_KEY].updatedAt === "number" ? obj[META_KEY].updatedAt : 0;
-      return Number.isFinite(t) ? t : 0;
-    } catch {
-      return 0;
+    if (!master[META_KEY] || typeof master[META_KEY] !== "object") {
+      master[META_KEY] = {};
     }
+
+    const meta = master[META_KEY];
+
+    if (typeof meta.updatedAt !== "number" || !Number.isFinite(meta.updatedAt)) meta.updatedAt = 0;
+    if (!meta.deviceId) meta.deviceId = uid();
+
+    if (!meta.keys || typeof meta.keys !== "object") meta.keys = {};
+    return master;
   }
 
   function mirrorRemoteCache(master) {
@@ -53,8 +52,9 @@ PortalApp.Storage = (function () {
     let master = raw ? safeParse(raw) : {};
     master = ensureMeta(master);
 
-    // Migrate legacy portal_* keys into master (one-time-ish)
+    // Migrate legacy portal_* keys into master once (so backup captures everything)
     let changed = false;
+    const meta = master[META_KEY];
 
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
@@ -67,12 +67,16 @@ PortalApp.Storage = (function () {
         k.includes("_metrics_");
 
       if (!looksLikeOurs) continue;
-      if (master[k] !== undefined) continue;
+      if (Object.prototype.hasOwnProperty.call(master, k)) continue;
 
       const legacyRaw = localStorage.getItem(k);
       if (!legacyRaw) continue;
 
       master[k] = safeParse(legacyRaw);
+
+      // Give migrated keys a timestamp that won't beat real saves
+      if (!meta.keys[k]) meta.keys[k] = { updatedAt: 0, deviceId: meta.deviceId };
+
       changed = true;
     }
 
@@ -90,22 +94,108 @@ PortalApp.Storage = (function () {
     mirrorRemoteCache(m);
   }
 
-  // Canonical config accessor.
-  // Does NOT store secrets here. It just reads what config.js (or Persistence) already set.
-  function getConfig() {
-    const p = window.PortalApp?.Persistence;
-    const pcfg = (p && typeof p.getConfig === "function") ? p.getConfig() : null;
+  function keyStamp(master, key) {
+    try {
+      const meta = master && master[META_KEY];
+      const ks = meta && meta.keys && meta.keys[key];
+      const t = ks && typeof ks.updatedAt === "number" ? ks.updatedAt : 0;
 
-    const webAppUrl =
-      (window.PORTALSTATE_WEBAPP_URL || window.GSCRIPT_WEBAPP_URL || pcfg?.webAppUrl || pcfg?.url || "").toString().trim();
+      // Back-compat: if key has no stamp, fall back to global meta.updatedAt
+      if (Number.isFinite(t) && t > 0) return t;
 
-    const token =
-      (window.PORTALSTATE_TOKEN || window.GSCRIPT_TOKEN || pcfg?.token || pcfg?.secret || "").toString().trim();
+      const g = meta && typeof meta.updatedAt === "number" ? meta.updatedAt : 0;
+      return Number.isFinite(g) ? g : 0;
+    } catch {
+      return 0;
+    }
+  }
 
-    const dashboardId =
-      (window.PORTALSTATE_DASHBOARD_ID || pcfg?.dashboardId || "ats-portal").toString().trim();
+  function setKeyStamp(master, key, t, deviceId) {
+    master = ensureMeta(master);
+    const meta = master[META_KEY];
+    if (!meta.keys || typeof meta.keys !== "object") meta.keys = {};
+    meta.keys[key] = { updatedAt: t, deviceId: deviceId || meta.deviceId };
+  }
 
-    return { webAppUrl, token, dashboardId };
+  function mergeMasters(local, remote) {
+    local = ensureMeta(local || {});
+    remote = ensureMeta(remote || {});
+
+    const merged = {};
+    merged[META_KEY] = {
+      updatedAt: 0,
+      deviceId: local[META_KEY].deviceId, // this device
+      keys: {}
+    };
+
+    const localKeys = Object.keys(local).filter(k => k !== META_KEY);
+    const remoteKeys = Object.keys(remote).filter(k => k !== META_KEY);
+
+    const allKeys = new Set([...localKeys, ...remoteKeys]);
+
+    let needsPush = false;
+
+    for (const k of allKeys) {
+      const lt = keyStamp(local, k);
+      const rt = keyStamp(remote, k);
+
+      const lHas = Object.prototype.hasOwnProperty.call(local, k);
+      const rHas = Object.prototype.hasOwnProperty.call(remote, k);
+
+      // If one side doesn't have it, take the other (but don't let "undefined" delete stuff).
+      if (lHas && !rHas) {
+        merged[k] = local[k];
+        setKeyStamp(merged, k, lt || local[META_KEY].updatedAt || 0, local[META_KEY].deviceId);
+        needsPush = true;
+        continue;
+      }
+      if (!lHas && rHas) {
+        merged[k] = remote[k];
+        setKeyStamp(merged, k, rt || remote[META_KEY].updatedAt || 0, remote[META_KEY].deviceId);
+        continue;
+      }
+
+      // Both have it: newer key-stamp wins.
+      if (rt > lt) {
+        merged[k] = remote[k];
+        setKeyStamp(merged, k, rt, remote[META_KEY].deviceId);
+        continue;
+      }
+      if (lt > rt) {
+        merged[k] = local[k];
+        setKeyStamp(merged, k, lt, local[META_KEY].deviceId);
+        needsPush = true;
+        continue;
+      }
+
+      // Tie: prefer remote to converge (but only if it actually has something).
+      // If remote is null/undefined and local has data, keep local.
+      const rv = remote[k];
+      const lv = local[k];
+
+      const remoteEmpty = (rv == null);
+      const localEmpty = (lv == null);
+
+      if (!remoteEmpty || localEmpty) {
+        merged[k] = rv;
+        setKeyStamp(merged, k, rt, remote[META_KEY].deviceId);
+      } else {
+        merged[k] = lv;
+        setKeyStamp(merged, k, lt, local[META_KEY].deviceId);
+        needsPush = true;
+      }
+    }
+
+    // Global meta.updatedAt = max key timestamp we ended up with
+    let maxT = 0;
+    const mk = merged[META_KEY].keys;
+    for (const k of Object.keys(mk)) {
+      const t = mk[k] && typeof mk[k].updatedAt === "number" ? mk[k].updatedAt : 0;
+      if (t > maxT) maxT = t;
+    }
+    merged[META_KEY].updatedAt = maxT || Date.now();
+
+    return { merged, needsPush };
   }
 
   async function pushNow(master) {
@@ -149,24 +239,20 @@ PortalApp.Storage = (function () {
     }
   }
 
-  function chooseWinner(local, remote) {
-    const lt = metaUpdatedAt(local);
-    const rt = metaUpdatedAt(remote);
-
-    // Only let remote overwrite if it is strictly newer.
-    // If equal or remote missing meta, keep local.
-    return (rt > lt) ? remote : local;
-  }
-
   function load(key) {
     const master = readMaster();
-    return (Object.prototype.hasOwnProperty.call(master, key)) ? master[key] : null;
+    return Object.prototype.hasOwnProperty.call(master, key) ? master[key] : null;
   }
 
   function save(key, val) {
     const master = readMaster();
+    const now = Date.now();
+
     master[key] = val;
-    master[META_KEY].updatedAt = Date.now();
+
+    master[META_KEY].updatedAt = now;
+    setKeyStamp(master, key, now, master[META_KEY].deviceId);
+
     writeMaster(master);
     schedulePush(master);
   }
@@ -179,12 +265,20 @@ PortalApp.Storage = (function () {
   function importAll(jsonText) {
     const obj = ensureMeta(safeParse(jsonText));
     if (!obj || typeof obj !== "object") throw new Error("Backup file is not valid JSON.");
-    obj[META_KEY].updatedAt = Date.now();
+
+    const now = Date.now();
+    obj[META_KEY].updatedAt = now;
+
+    // Stamp all keys so imported backup wins consistently
+    for (const k of Object.keys(obj)) {
+      if (k === META_KEY) continue;
+      setKeyStamp(obj, k, now, obj[META_KEY].deviceId);
+    }
+
     writeMaster(obj);
     schedulePush(obj);
   }
 
-  // app.js calls this
   async function init() {
     const local = readMaster();
     const pulled = await fetchRemote();
@@ -195,18 +289,16 @@ PortalApp.Storage = (function () {
       return pulled;
     }
 
-    // Remote has data: pick the newest (by meta.updatedAt)
+    // Remote has data: merge per key (fixes cross-device stomping)
     if (pulled?.ok && pulled.state) {
-      const remote = pulled.state;
-      const winner = chooseWinner(local, remote);
-      writeMaster(winner);
+      const { merged, needsPush } = mergeMasters(local, pulled.state);
+      writeMaster(merged);
 
-      // If local was newer, push it up so remote stops resurrecting zombies.
-      if (winner === local && metaUpdatedAt(local) > metaUpdatedAt(remote)) {
-        await pushNow(local);
+      if (needsPush) {
+        await pushNow(merged);
       }
 
-      return { ok: true, state: winner };
+      return { ok: true, state: merged };
     }
 
     return pulled;
@@ -220,15 +312,15 @@ PortalApp.Storage = (function () {
   async function forcePull() {
     const local = readMaster();
     const pulled = await fetchRemote();
+
     if (pulled?.ok && pulled.state) {
-      const winner = chooseWinner(local, pulled.state);
-      writeMaster(winner);
-      if (winner === local && metaUpdatedAt(local) > metaUpdatedAt(pulled.state)) {
-        await pushNow(local);
-      }
+      const { merged, needsPush } = mergeMasters(local, pulled.state);
+      writeMaster(merged);
+      if (needsPush) await pushNow(merged);
     }
+
     return pulled;
   }
 
-  return { load, save, exportAll, importAll, init, forcePush, forcePull, getConfig };
+  return { load, save, exportAll, importAll, init, forcePush, forcePull };
 })();

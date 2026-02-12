@@ -3,13 +3,13 @@
 /* ========================================================= */
 /*
   Tier 1 Briefing:
-    Persistent scratchpad for items to brief in Tier 1 meetings.
+    Persistent scratchpad for Tier 1 meeting briefing items.
 
   Behavior:
     - Incomplete items show a toggle switch.
     - Completed items show the green "Complete" pill.
     - At midnight (local time):
-        - Any items completed before today are removed (derez).
+        - Remove items completed before today (derez).
 
   Storage:
     STORAGE_KEY: portal_tier1_briefing_v1
@@ -19,12 +19,12 @@
 (function () {
   "use strict";
 
-  console.log("[Tier1Briefing] build 2026-02-12_01");
+  console.log("[Tier1Briefing] build 2026-02-12_02");
 
   window.PortalWidgets = window.PortalWidgets || {};
 
   const STORAGE_KEY = "portal_tier1_briefing_v1";
-  const MAX_ITEMS = 200; // keep it sane
+  const MAX_ITEMS = 200;
 
   function esc(s) {
     return String(s)
@@ -55,7 +55,7 @@
 
   function msUntilNextMidnight(now = new Date()) {
     const next = new Date(now);
-    next.setHours(24, 0, 0, 50); // tiny buffer after midnight
+    next.setHours(24, 0, 0, 50);
     return Math.max(250, next.getTime() - now.getTime());
   }
 
@@ -104,17 +104,14 @@
       text,
       createdAt: ca,
       completed,
-      completedAt: completed
-        ? (Number.isFinite(completedAt) ? completedAt : Date.now())
-        : null
+      completedAt: completed ? (Number.isFinite(completedAt) ? completedAt : Date.now()) : null
     };
   }
 
   function normalizeState(raw) {
     const obj = (raw && typeof raw === "object") ? raw : {};
     const arr = Array.isArray(obj.items) ? obj.items : (Array.isArray(raw) ? raw : []);
-    const items = arr.map(normalizeItem).filter(Boolean);
-    return { items };
+    return { items: arr.map(normalizeItem).filter(Boolean) };
   }
 
   function prune(state) {
@@ -124,14 +121,13 @@
   }
 
   function rollover(state, nowTs) {
-    // Derez: remove completed items that were completed before today's midnight
     const sod = startOfDay(nowTs);
     const before = state.items.length;
 
     state.items = state.items.filter((it) => {
       if (!it.completed) return true;
-      if (!Number.isFinite(it.completedAt)) return true; // if somehow missing, keep (won't block)
-      return it.completedAt >= sod; // keep only if completed today
+      if (!Number.isFinite(it.completedAt)) return true;
+      return it.completedAt >= sod; // keep only completed today
     });
 
     prune(state);
@@ -214,158 +210,146 @@
     slot.innerHTML = buildHTML(state);
   }
 
-  function init(slotId) {
-    const slot = document.getElementById(slotId);
-    if (!slot) return;
+  window.PortalWidgets.Tier1Briefing = {
+    init(slotId) {
+      const slot = document.getElementById(slotId);
+      if (!slot) return;
 
-    if (slot.dataset.tier1Inited === "1") return;
-    slot.dataset.tier1Inited = "1";
+      if (slot.dataset.tier1Inited === "1") return;
+      slot.dataset.tier1Inited = "1";
 
-    const store = getStore();
+      const store = getStore();
 
-    let state = normalizeState(store.load(STORAGE_KEY));
-    prune(state);
-
-    // Apply rollover immediately on load (so old completed items don't linger)
-    const changed = rollover(state, Date.now());
-    if (changed) store.save(STORAGE_KEY, state);
-
-    render(slot, state);
-
-    function saveAndRender() {
+      // Load immediately
+      let state = normalizeState(store.load(STORAGE_KEY));
       prune(state);
+
+      // Apply rollover immediately (so old completed items don't linger)
+      rollover(state, Date.now());
       store.save(STORAGE_KEY, state);
+
       render(slot, state);
-    }
 
-    function openModal() {
-      const modal = slot.querySelector('[data-role="t1-modal"]');
-      const input = slot.querySelector('[data-role="t1-input"]');
-      if (!modal || !input) return;
-      modal.classList.add("rt-open");
-      modal.setAttribute("aria-hidden", "false");
-      input.value = "";
-      setTimeout(() => input.focus(), 0);
-    }
-
-    function closeModal() {
-      const modal = slot.querySelector('[data-role="t1-modal"]');
-      if (!modal) return;
-      modal.classList.remove("rt-open");
-      modal.setAttribute("aria-hidden", "true");
-    }
-
-    // Midnight derez timer
-    let midnightTimer = null;
-    function scheduleMidnightTick() {
-      if (midnightTimer) clearTimeout(midnightTimer);
-      midnightTimer = setTimeout(() => {
-        const did = rollover(state, Date.now());
-        if (did) store.save(STORAGE_KEY, state);
+      function saveAndRender() {
+        prune(state);
+        store.save(STORAGE_KEY, state);
         render(slot, state);
-        scheduleMidnightTick();
-      }, msUntilNextMidnight(new Date()));
-    }
-    scheduleMidnightTick();
-
-    // Click handling
-    slot.addEventListener("click", (e) => {
-      const backdrop = slot.querySelector('[data-role="t1-modal"]');
-      if (backdrop && e.target === backdrop && backdrop.classList.contains("rt-open")) {
-        closeModal();
-        return;
       }
 
-      const btn = e.target.closest("button");
-      if (!btn) return;
-
-      const action = btn.dataset.action;
-
-      if (action === "open-add") return void openModal();
-      if (action === "close-modal") return void closeModal();
-
-      if (action === "add-item") {
+      function openModal() {
+        const modal = slot.querySelector('[data-role="t1-modal"]');
         const input = slot.querySelector('[data-role="t1-input"]');
+        if (!modal || !input) return;
+        modal.classList.add("rt-open");
+        modal.setAttribute("aria-hidden", "false");
+        input.value = "";
+        setTimeout(() => input.focus(), 0);
+      }
+
+      function closeModal() {
+        const modal = slot.querySelector('[data-role="t1-modal"]');
+        if (!modal) return;
+        modal.classList.remove("rt-open");
+        modal.setAttribute("aria-hidden", "true");
+      }
+
+      // Midnight derez timer
+      let midnightTimer = null;
+      function scheduleMidnightTick() {
+        if (midnightTimer) clearTimeout(midnightTimer);
+        midnightTimer = setTimeout(() => {
+          const did = rollover(state, Date.now());
+          if (did) store.save(STORAGE_KEY, state);
+          render(slot, state);
+          scheduleMidnightTick();
+        }, msUntilNextMidnight(new Date()));
+      }
+      scheduleMidnightTick();
+
+      // Clicks
+      slot.addEventListener("click", (e) => {
+        const backdrop = slot.querySelector('[data-role="t1-modal"]');
+        if (backdrop && e.target === backdrop && backdrop.classList.contains("rt-open")) {
+          closeModal();
+          return;
+        }
+
+        const btn = e.target.closest("button");
+        if (!btn) return;
+
+        const action = btn.dataset.action;
+
+        if (action === "open-add") return void openModal();
+        if (action === "close-modal") return void closeModal();
+
+        if (action === "add-item") {
+          const input = slot.querySelector('[data-role="t1-input"]');
+          if (!input) return;
+
+          const text = normalizeText(input.value);
+          if (!text) return;
+
+          state.items.unshift({
+            id: uid(),
+            text,
+            createdAt: Date.now(),
+            completed: false,
+            completedAt: null
+          });
+
+          closeModal();
+          saveAndRender();
+        }
+      });
+
+      // Enter/Escape
+      slot.addEventListener("keydown", (e) => {
+        const backdrop = slot.querySelector('[data-role="t1-modal"]');
+        if (!backdrop || !backdrop.classList.contains("rt-open")) return;
+
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeModal();
+          return;
+        }
+
+        if (e.key === "Enter") {
+          const input = slot.querySelector('[data-role="t1-input"]');
+          if (!input) return;
+
+          const text = normalizeText(input.value);
+          if (!text) return;
+
+          state.items.unshift({
+            id: uid(),
+            text,
+            createdAt: Date.now(),
+            completed: false,
+            completedAt: null
+          });
+
+          e.preventDefault();
+          closeModal();
+          saveAndRender();
+        }
+      });
+
+      // Toggle completion
+      slot.addEventListener("change", (e) => {
+        const input = e.target.closest('input[data-action="toggle"]');
         if (!input) return;
 
-        const text = normalizeText(input.value);
-        if (!text) return;
+        const id = input.dataset.id;
+        if (!id) return;
 
-        state.items.unshift({
-          id: uid(),
-          text,
-          createdAt: Date.now(),
-          completed: false,
-          completedAt: null
-        });
+        const hit = state.items.find((x) => x.id === id);
+        if (!hit) return;
 
-        closeModal();
+        hit.completed = !!input.checked;
+        hit.completedAt = hit.completed ? Date.now() : null;
+
         saveAndRender();
-      }
-    });
-
-    // Enter/Escape in modal
-    slot.addEventListener("keydown", (e) => {
-      const backdrop = slot.querySelector('[data-role="t1-modal"]');
-      if (!backdrop || !backdrop.classList.contains("rt-open")) return;
-
-      if (e.key === "Escape") {
-        e.preventDefault();
-        closeModal();
-        return;
-      }
-
-      if (e.key === "Enter") {
-        const input = slot.querySelector('[data-role="t1-input"]');
-        if (!input) return;
-
-        const text = normalizeText(input.value);
-        if (!text) return;
-
-        state.items.unshift({
-          id: uid(),
-          text,
-          createdAt: Date.now(),
-          completed: false,
-          completedAt: null
-        });
-
-        e.preventDefault();
-        closeModal();
-        saveAndRender();
-      }
-    });
-
-    // Toggle completion
-    slot.addEventListener("change", (e) => {
-      const input = e.target.closest('input[data-action="toggle"]');
-      if (!input) return;
-
-      const id = input.dataset.id;
-      if (!id) return;
-
-      const hit = state.items.find((x) => x.id === id);
-      if (!hit) return;
-
-      hit.completed = !!input.checked;
-      hit.completedAt = hit.completed ? Date.now() : null;
-
-      saveAndRender();
-    });
-  }
-
-  window.PortalWidgets.Tier1Briefing = { init };
-
-  // Auto-init safety net
-  (function autoInit() {
-    function go() {
-      const el = document.getElementById("tier1-briefing-slot");
-      if (el) init("tier1-briefing-slot");
+      });
     }
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", go);
-    } else {
-      go();
-    }
-  })();
+  };
 })();
