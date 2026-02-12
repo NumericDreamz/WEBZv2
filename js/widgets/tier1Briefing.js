@@ -3,11 +3,13 @@
 /* ========================================================= */
 /*
   Tier 1 Briefing:
-    A persistent scratchpad for items to brief in Tier 1 meetings.
+    Persistent scratchpad for Tier 1 meeting briefing items.
 
-  Differences vs Recent Tasks:
-    - No overdue logic (no angry flashing).
-    - No midnight rollover cleanup. Items can live for days/weeks.
+  Behavior:
+    - Incomplete items show a toggle switch.
+    - Completed items show the green "Complete" pill.
+    - At midnight (local time):
+        - Remove items completed before today (derez).
 
   Storage:
     STORAGE_KEY: portal_tier1_briefing_v1
@@ -17,12 +19,12 @@
 (function () {
   "use strict";
 
-  console.log("[Tier1Briefing] build 2026-02-06_01");
+  console.log("[Tier1Briefing] build 2026-02-12_02");
 
   window.PortalWidgets = window.PortalWidgets || {};
 
   const STORAGE_KEY = "portal_tier1_briefing_v1";
-  const MAX_ITEMS = 80;
+  const MAX_ITEMS = 200;
 
   function esc(s) {
     return String(s)
@@ -45,68 +47,25 @@
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
 
-  function isThenable(v) {
-    return v && (typeof v === "object" || typeof v === "function") && typeof v.then === "function";
+  function startOfDay(ts = Date.now()) {
+    const d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
   }
 
-  function safeParse(raw) {
-    try {
-      const v = JSON.parse(raw);
-      return (v && typeof v === "object") ? v : null;
-    } catch {
-      return null;
-    }
-  }
-
-  function maybeParseJSON(v) {
-    if (typeof v !== "string") return v;
-    const parsed = safeParse(v);
-    return parsed ?? v;
-  }
-
-  function toBool(v) {
-    if (typeof v === "boolean") return v;
-    if (typeof v === "number") return v !== 0;
-    if (typeof v === "string") {
-      const s = v.trim().toLowerCase();
-      return s === "true" || s === "yes" || s === "y" || s === "1" || s === "done" || s === "complete";
-    }
-    return false;
-  }
-
-  function toMs(v, fallback = null) {
-    if (v == null) return fallback;
-
-    if (typeof v === "number" && Number.isFinite(v)) return v;
-
-    if (v instanceof Date) {
-      const t = v.getTime();
-      return Number.isFinite(t) ? t : fallback;
-    }
-
-    if (typeof v === "string") {
-      const s = v.trim();
-      if (!s) return fallback;
-
-      if (/^-?\d+(\.\d+)?$/.test(s)) {
-        const n = Number(s);
-        return Number.isFinite(n) ? n : fallback;
-      }
-
-      const p = Date.parse(s);
-      return Number.isNaN(p) ? fallback : p;
-    }
-
-    return fallback;
+  function msUntilNextMidnight(now = new Date()) {
+    const next = new Date(now);
+    next.setHours(24, 0, 0, 50);
+    return Math.max(250, next.getTime() - now.getTime());
   }
 
   function getFallbackStore() {
     return {
-      load: function (key) {
+      load(key) {
         try { return JSON.parse(localStorage.getItem(key) || "null"); }
         catch { return null; }
       },
-      save: function (key, val) {
+      save(key, val) {
         localStorage.setItem(key, JSON.stringify(val || {}));
       }
     };
@@ -114,25 +73,6 @@
 
   function getStore() {
     return window.PortalApp?.Storage || getFallbackStore();
-  }
-
-  async function storeLoad(store, key) {
-    try {
-      let v = store.load(key);
-      if (isThenable(v)) v = await v;
-      return maybeParseJSON(v);
-    } catch {
-      return null;
-    }
-  }
-
-  async function storeSave(store, key, val) {
-    try {
-      const r = store.save(key, val);
-      if (isThenable(r)) await r;
-    } catch {
-      // if persistence fails, UI still works locally
-    }
   }
 
   function normalizeItem(it) {
@@ -150,26 +90,48 @@
     const text = normalizeText(it.text ?? it.title ?? it.task ?? it.label ?? "");
     if (!text) return null;
 
-    const createdAt = toMs(it.createdAt ?? it.created ?? it.ts ?? null, Date.now());
-    const completed = toBool(it.completed ?? it.done ?? it.isComplete ?? false);
-    const completedAt = completed ? toMs(it.completedAt ?? it.doneAt ?? null, null) : null;
+    const createdAt = Number(it.createdAt ?? it.created ?? it.ts ?? Date.now());
+    const completed = !!(it.completed ?? it.done ?? false);
 
-    const id = (it.id != null && String(it.id)) || uid();
+    let completedAt = it.completedAt ?? it.doneAt ?? null;
+    completedAt = (completedAt == null) ? null : Number(completedAt);
 
-    return { id, text, createdAt, completed, completedAt };
+    const ca = Number.isFinite(createdAt) ? createdAt : Date.now();
+    const id = String(it.id ?? uid());
+
+    return {
+      id,
+      text,
+      createdAt: ca,
+      completed,
+      completedAt: completed ? (Number.isFinite(completedAt) ? completedAt : Date.now()) : null
+    };
   }
 
   function normalizeState(raw) {
     const obj = (raw && typeof raw === "object") ? raw : {};
     const arr = Array.isArray(obj.items) ? obj.items : (Array.isArray(raw) ? raw : []);
-    const items = arr.map(normalizeItem).filter(Boolean);
-    return { items };
+    return { items: arr.map(normalizeItem).filter(Boolean) };
   }
 
   function prune(state) {
     if (!state || !Array.isArray(state.items)) return;
     state.items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     if (state.items.length > MAX_ITEMS) state.items = state.items.slice(0, MAX_ITEMS);
+  }
+
+  function rollover(state, nowTs) {
+    const sod = startOfDay(nowTs);
+    const before = state.items.length;
+
+    state.items = state.items.filter((it) => {
+      if (!it.completed) return true;
+      if (!Number.isFinite(it.completedAt)) return true;
+      return it.completedAt >= sod; // keep only completed today
+    });
+
+    prune(state);
+    return state.items.length !== before;
   }
 
   function buildHTML(state) {
@@ -249,7 +211,7 @@
   }
 
   window.PortalWidgets.Tier1Briefing = {
-    init: function (slotId) {
+    init(slotId) {
       const slot = document.getElementById(slotId);
       if (!slot) return;
 
@@ -258,23 +220,20 @@
 
       const store = getStore();
 
-      let state = { items: [] };
-      let ready = false;
-      let saveTimer = null;
+      // Load immediately
+      let state = normalizeState(store.load(STORAGE_KEY));
+      prune(state);
 
-      function queueSave() {
-        if (saveTimer) clearTimeout(saveTimer);
-        saveTimer = setTimeout(() => {
-          saveTimer = null;
-          prune(state);
-          storeSave(store, STORAGE_KEY, state);
-        }, 250);
-      }
+      // Apply rollover immediately (so old completed items don't linger)
+      rollover(state, Date.now());
+      store.save(STORAGE_KEY, state);
+
+      render(slot, state);
 
       function saveAndRender() {
         prune(state);
+        store.save(STORAGE_KEY, state);
         render(slot, state);
-        queueSave();
       }
 
       function openModal() {
@@ -294,9 +253,21 @@
         modal.setAttribute("aria-hidden", "true");
       }
 
-      slot.addEventListener("click", (e) => {
-        if (!ready) return;
+      // Midnight derez timer
+      let midnightTimer = null;
+      function scheduleMidnightTick() {
+        if (midnightTimer) clearTimeout(midnightTimer);
+        midnightTimer = setTimeout(() => {
+          const did = rollover(state, Date.now());
+          if (did) store.save(STORAGE_KEY, state);
+          render(slot, state);
+          scheduleMidnightTick();
+        }, msUntilNextMidnight(new Date()));
+      }
+      scheduleMidnightTick();
 
+      // Clicks
+      slot.addEventListener("click", (e) => {
         const backdrop = slot.querySelector('[data-role="t1-modal"]');
         if (backdrop && e.target === backdrop && backdrop.classList.contains("rt-open")) {
           closeModal();
@@ -331,9 +302,8 @@
         }
       });
 
+      // Enter/Escape
       slot.addEventListener("keydown", (e) => {
-        if (!ready) return;
-
         const backdrop = slot.querySelector('[data-role="t1-modal"]');
         if (!backdrop || !backdrop.classList.contains("rt-open")) return;
 
@@ -364,9 +334,8 @@
         }
       });
 
+      // Toggle completion
       slot.addEventListener("change", (e) => {
-        if (!ready) return;
-
         const input = e.target.closest('input[data-action="toggle"]');
         if (!input) return;
 
@@ -381,23 +350,6 @@
 
         saveAndRender();
       });
-
-      render(slot, state);
-
-      (async () => {
-        const raw = await storeLoad(store, STORAGE_KEY);
-        const hadExisting = raw != null;
-
-        state = normalizeState(raw);
-        prune(state);
-
-        if (hadExisting || state.items.length) {
-          await storeSave(store, STORAGE_KEY, state);
-        }
-
-        render(slot, state);
-        ready = true;
-      })();
     }
   };
 })();
