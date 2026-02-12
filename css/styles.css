@@ -1318,3 +1318,27 @@ body{
 .backlogRow.status-complete .backlogDesc{
   color: rgba(184, 255, 204, 0.85) !important;
 }
+
+
+/* ===== Environment / Dataset marker ===== */
+.ats-env-marker{
+  text-align: center;
+  margin-top: 6px;
+  margin-bottom: 2px;
+  user-select: none;
+}
+.ats-env-marker__line{
+  height: 1px;
+  width: 140px;
+  margin: 0 auto;
+  background: currentColor;
+  opacity: 0.35;
+}
+.ats-env-marker__label{
+  font-weight: 800;
+  letter-spacing: 4px;
+  font-size: 12px;
+  opacity: 0.9;
+  text-transform: uppercase;
+  margin: 3px 0;
+}

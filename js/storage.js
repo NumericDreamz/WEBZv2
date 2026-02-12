@@ -3,14 +3,30 @@ window.PortalApp = window.PortalApp || {};
 PortalApp.Storage = (function () {
   "use strict";
 
-  console.log("[Portal] storage.js build 2026-02-12_02");
+  console.log("[Portal] storage.js build 2026-02-12_03");
 
-  const MASTER_KEY = "ats_portal_state_v1";
-  const REMOTE_CACHE_KEY = "portal_state_cache_v1";
+  function getDatasetKey() {
+    try {
+      const env = window.PortalApp && window.PortalApp.Env;
+      if (env && typeof env.getDatasetKey === "function") return env.getDatasetKey();
+    } catch (_) {}
+    const k = (window.PORTALSTATE_DATASET || "").toString().trim().toLowerCase();
+    return k || "stable";
+  }
+
+  const DATASET_KEY = getDatasetKey();
+
+  // Dataset-scoped local keys (so BETA/STABLE don't stomp each other locally)
+  const MASTER_KEY = `ats_portal_state_v1:${DATASET_KEY}`;
+  const REMOTE_CACHE_KEY = `portal_state_cache_v1:${DATASET_KEY}`;
   const META_KEY = "__meta";
 
   const PUSH_DEBOUNCE_MS = 700;
   let pushTimer = null;
+
+  // Patch queue (only send changed keys when server supports it)
+  let patchTimer = null;
+  let pendingPatch = {}; // key -> { value, updatedAt, deviceId }
 
   function safeParse(raw) {
     try {
@@ -38,6 +54,10 @@ PortalApp.Storage = (function () {
     if (!meta.deviceId) meta.deviceId = uid();
 
     if (!meta.keys || typeof meta.keys !== "object") meta.keys = {};
+
+    // Handy breadcrumb for humans debugging backups
+    meta.dataset = DATASET_KEY;
+
     return master;
   }
 
@@ -47,9 +67,26 @@ PortalApp.Storage = (function () {
     } catch (_) {}
   }
 
+  function readRaw(key) {
+    const raw = localStorage.getItem(key);
+    return raw ? safeParse(raw) : null;
+  }
+
   function readMaster() {
-    const raw = localStorage.getItem(MASTER_KEY);
-    let master = raw ? safeParse(raw) : {};
+    // Primary
+    let master = readRaw(MASTER_KEY);
+
+    // One-time migration from pre-dataset key (older builds)
+    if (!master) {
+      const legacy = readRaw("ats_portal_state_v1");
+      if (legacy && typeof legacy === "object") {
+        master = legacy;
+        try { localStorage.setItem(MASTER_KEY, JSON.stringify(master)); } catch (_) {}
+      } else {
+        master = {};
+      }
+    }
+
     master = ensureMeta(master);
 
     // Migrate legacy portal_* keys into master once (so backup captures everything)
@@ -60,6 +97,7 @@ PortalApp.Storage = (function () {
       const k = localStorage.key(i);
       if (!k) continue;
       if (k === MASTER_KEY || k === REMOTE_CACHE_KEY) continue;
+      if (k === "ats_portal_state_v1" || k === "portal_state_cache_v1") continue;
 
       const looksLikeOurs =
         k.startsWith("portal_") ||
@@ -125,7 +163,8 @@ PortalApp.Storage = (function () {
     merged[META_KEY] = {
       updatedAt: 0,
       deviceId: local[META_KEY].deviceId, // this device
-      keys: {}
+      keys: {},
+      dataset: DATASET_KEY
     };
 
     const localKeys = Object.keys(local).filter(k => k !== META_KEY);
@@ -142,7 +181,6 @@ PortalApp.Storage = (function () {
       const lHas = Object.prototype.hasOwnProperty.call(local, k);
       const rHas = Object.prototype.hasOwnProperty.call(remote, k);
 
-      // If one side doesn't have it, take the other (but don't let "undefined" delete stuff).
       if (lHas && !rHas) {
         merged[k] = local[k];
         setKeyStamp(merged, k, lt || local[META_KEY].updatedAt || 0, local[META_KEY].deviceId);
@@ -155,7 +193,6 @@ PortalApp.Storage = (function () {
         continue;
       }
 
-      // Both have it: newer key-stamp wins.
       if (rt > lt) {
         merged[k] = remote[k];
         setKeyStamp(merged, k, rt, remote[META_KEY].deviceId);
@@ -168,8 +205,6 @@ PortalApp.Storage = (function () {
         continue;
       }
 
-      // Tie: prefer remote to converge (but only if it actually has something).
-      // If remote is null/undefined and local has data, keep local.
       const rv = remote[k];
       const lv = local[k];
 
@@ -186,7 +221,6 @@ PortalApp.Storage = (function () {
       }
     }
 
-    // Global meta.updatedAt = max key timestamp we ended up with
     let maxT = 0;
     const mk = merged[META_KEY].keys;
     for (const k of Object.keys(mk)) {
@@ -214,10 +248,54 @@ PortalApp.Storage = (function () {
     }
   }
 
+  async function pushPatchNow(master, patch) {
+    const p = window.PortalApp?.Persistence;
+    if (!p) return { ok: false, reason: "PortalApp.Persistence missing" };
+
+    // If server doesn't support patch, fall back to full push.
+    if (typeof p.patchState !== "function") {
+      return await pushNow(master);
+    }
+
+    try {
+      const payload = {
+        dataset: DATASET_KEY,
+        meta: {
+          updatedAt: master?.[META_KEY]?.updatedAt || Date.now(),
+          deviceId: master?.[META_KEY]?.deviceId || ""
+        },
+        keys: patch || {}
+      };
+
+      const res = await p.patchState(payload);
+
+      // If patch fails, full push as a safety net.
+      if (!res?.ok) {
+        return await pushNow(master);
+      }
+      return res;
+    } catch (e) {
+      return await pushNow(master);
+    }
+  }
+
   function schedulePush(master) {
     if (pushTimer) clearTimeout(pushTimer);
     pushTimer = setTimeout(() => {
       pushNow(master).catch((e) => console.warn("[Portal] Remote push failed:", e));
+    }, PUSH_DEBOUNCE_MS);
+  }
+
+  function schedulePatch(master) {
+    if (patchTimer) clearTimeout(patchTimer);
+    patchTimer = setTimeout(() => {
+      const patch = pendingPatch;
+      pendingPatch = {};
+
+      // Nothing to send
+      if (!patch || !Object.keys(patch).length) return;
+
+      pushPatchNow(master, patch).catch((e) => console.warn("[Portal] Remote patch failed:", e));
     }, PUSH_DEBOUNCE_MS);
   }
 
@@ -254,7 +332,10 @@ PortalApp.Storage = (function () {
     setKeyStamp(master, key, now, master[META_KEY].deviceId);
 
     writeMaster(master);
-    schedulePush(master);
+
+    // Prefer patch (changed keys only). Full push remains available as fallback.
+    pendingPatch[key] = { value: val, updatedAt: now, deviceId: master[META_KEY].deviceId };
+    schedulePatch(master);
   }
 
   function exportAll() {
@@ -268,8 +349,8 @@ PortalApp.Storage = (function () {
 
     const now = Date.now();
     obj[META_KEY].updatedAt = now;
+    obj[META_KEY].dataset = DATASET_KEY;
 
-    // Stamp all keys so imported backup wins consistently
     for (const k of Object.keys(obj)) {
       if (k === META_KEY) continue;
       setKeyStamp(obj, k, now, obj[META_KEY].deviceId);
@@ -283,13 +364,11 @@ PortalApp.Storage = (function () {
     const local = readMaster();
     const pulled = await fetchRemote();
 
-    // Remote empty: push local up for first-time setup
     if (pulled?.ok && !pulled?.state) {
       if (Object.keys(local).length) await pushNow(local);
       return pulled;
     }
 
-    // Remote has data: merge per key (fixes cross-device stomping)
     if (pulled?.ok && pulled.state) {
       const { merged, needsPush } = mergeMasters(local, pulled.state);
       writeMaster(merged);

@@ -38,7 +38,83 @@
       text-decoration: underline;
       opacity: 0.9;
     }
+    .settings-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      margin: 12px 0;
+    }
+    .settings-pill {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.20);
+      opacity: 0.95;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .dataset-box {
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(0,0,0,0.25);
+      margin-top: 12px;
+    }
+    .ds-option {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.18);
+      margin-bottom: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .ds-option:last-child { margin-bottom: 0; }
+    .ds-option input { margin-top: 3px; }
+    .ds-title {
+      font-weight: 800;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      font-size: 12px;
+      opacity: 0.95;
+    }
+    .ds-desc {
+      font-size: 12px;
+      opacity: 0.75;
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+    .settings-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .btn-lite {
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.25);
+      color: inherit;
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 12px;
+      opacity: 0.95;
+    }
+    .btn-lite:hover { opacity: 1; }
   </style>
+
+  <script src="js/config.js?v=20260212_03" defer></script>
+  <script src="js/persistence.js?v=20260212_03" defer></script>
+  <script src="js/storage.js?v=20260212_03" defer></script>
+  <script src="js/settingsPage.js?v=20260212_03" defer></script>
 </head>
 
 <body>
@@ -46,18 +122,54 @@
     <img src="images/logo.png" alt="Company Logo">
   </div>
 
+  <div id="atsEnvMarker" class="ats-env-marker" aria-label="Dataset"></div>
+
   <div class="page-shell">
     <h1 class="page-title">Settings</h1>
+
     <div class="page-card">
-      <p class="page-note">
-        This page is a placeholder for now. Eventually it’ll hold deeper info and configuration for widgets.
-      </p>
-      <p class="page-note">
+      <div class="settings-row">
+        <div class="settings-pill">Build: <span id="envBuild">?</span></div>
+        <div class="settings-pill">Dataset: <span id="envDataset">?</span></div>
+      </div>
+
+      <div class="dataset-box">
+        <div class="page-note" style="margin-bottom:10px;">
+          Pick which dataset this device writes to. This setting is local-only (so your phone doesn’t decide your desktop’s fate).
+        </div>
+
+        <label class="ds-option" for="dsStable">
+          <input type="radio" name="dataset" id="dsStable" value="stable">
+          <div>
+            <div class="ds-title">Stable</div>
+            <div class="ds-desc">Your real, day-to-day data. The one you’ll be mad about losing.</div>
+          </div>
+        </label>
+
+        <label class="ds-option" for="dsBeta">
+          <input type="radio" name="dataset" id="dsBeta" value="beta">
+          <div>
+            <div class="ds-title">Beta</div>
+            <div class="ds-desc">Test data for experiments. Break stuff here, not in production.</div>
+          </div>
+        </label>
+
+        <div class="settings-actions">
+          <button class="btn-lite" id="applyDataset" type="button">Apply + Reload</button>
+          <button class="btn-lite" id="clearLocal" type="button">Clear Local Cache</button>
+        </div>
+
+        <div class="page-note" style="margin-top:12px;">
+          Remote target: <span id="envDashboardId">?</span> • <span id="envUrl">?</span>
+        </div>
+      </div>
+
+      <p class="page-note" style="margin-top:14px;">
         Go back to <a class="inline-link" href="./index.html">Home</a>.
       </p>
     </div>
   </div>
 
-  <script src="js/nav.js"></script>
+  <script src="js/nav.js?v=20260212_03"></script>
 </body>
 </html>
