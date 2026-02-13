@@ -1,0 +1,34 @@
+<!-- ATS Dashboard Drawer Nav Partial -->
+<nav class="ats-nav">
+  <button class="ats-nav__hamburger" type="button" aria-label="Open menu" aria-controls="ats-drawer" aria-expanded="false">
+    <img src="./images/icons/hamburger.svg" alt="">
+  </button>
+
+  <div class="ats-drawer__overlay" data-ats-drawer-close hidden></div>
+
+  <aside id="ats-drawer" class="ats-drawer" aria-hidden="true">
+    <div class="ats-drawer__header">
+      <div class="ats-drawer__headtext">
+        <div class="ats-drawer__title">Menu</div>
+        <div class="ats-drawer__sub" id="ats-drawer-env"></div>
+      </div>
+      <button class="ats-drawer__close" type="button" aria-label="Close menu" data-ats-drawer-close>
+        ✕
+      </button>
+    </div>
+
+    <ul class="ats-drawer__list">
+      <li><a class="ats-drawer__link" href="./index.html" data-ats-link>Home</a></li>
+      <li><a class="ats-drawer__link" href="./backlog.html" data-ats-link>Backlog</a></li>
+      <li><a class="ats-drawer__link" href="./status.html" data-ats-link>Status</a></li>
+      <li><a class="ats-drawer__link" href="./metrics.html" data-ats-link>Metrics</a></li>
+      <li><a class="ats-drawer__link" href="./settings.html" data-ats-link>Settings</a></li>
+    </ul>
+
+    <div class="ats-drawer__footer">
+      <button class="ats-drawer__kebab" type="button" aria-label="More options">
+        <img src="./images/icons/kebab.svg" alt="">
+      </button>
+    </div>
+  </aside>
+</nav>

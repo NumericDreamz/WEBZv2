@@ -1,16 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#0b0b0b">
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ATS Portal</title>
 
-  <link rel="stylesheet" href="css/styles.css" />
+  
+  <link rel="icon" href="favicon.ico" />
+<link rel="stylesheet" href="css/styles.css" />
 
-  <!-- JS modules (plain old script files, no bundler, no drama) -->
-  <script src="js/config.js?v=20260209_1" defer></script>
-  <script src="js/storage.js?v=20260212_02" defer></script>
-  <script src="js/persistence.js?v=20260208_1" defer></script>
+  
+  <link rel="stylesheet" href="css/nav.css" />
+<!-- JS modules (plain old script files, no bundler, no drama) -->
+  <script src="js/config.js?v=20260212_03" defer></script>
+  <script src="js/storage.js?v=20260212_03" defer></script>
+  <script src="js/persistence.js?v=20260212_03" defer></script>
 
   <script src="js/widgets/monthly.js?v=20260208_1" defer></script>
   <script src="js/widgets/weekly.js?v=20260208_1" defer></script>
@@ -29,16 +36,9 @@
   <div class="logo">
     <img src="images/logo.png" alt="Company Logo">
   </div>
+  <div id="atsEnvMarker" class="ats-env-marker" aria-label="Dataset"></div>
 
-  <!-- ================== BETA MARKER START (REMOVE WHEN STABLE) ================== -->
-  <div id="atsBetaMarker" style="text-align:center; margin-top:6px; margin-bottom:2px;">
-    <div style="height:1px; width:140px; margin:0 auto 3px auto; background:currentColor; opacity:0.35;"></div>
-    <div style="font-weight:800; letter-spacing:4px; font-size:12px; opacity:0.9;">LSW DASHBOARD</div>
-    <div style="height:1px; width:140px; margin:3px auto 0 auto; background:currentColor; opacity:0.35;"></div>
-  </div>
-  <!-- =================== BETA MARKER END (REMOVE WHEN STABLE) =================== -->
-
-  <div class="page-layout">
+<div class="page-layout">
 
     <!-- ========================================================= -->
     <!-- LEFT COLUMN WIDGETS -->
@@ -197,5 +197,16 @@
     </aside>
 
   </div>
+  
+  <script src="js/nav.js?v=20260212_03"></script>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
+    });
+  }
+</script>
+
 </body>
 </html>

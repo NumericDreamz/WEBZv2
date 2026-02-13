@@ -1,5 +1,15 @@
 (function () {
-  const LAST_SYNC_KEY = "ats_portal_last_sync_date_v1";
+  function getDatasetKey() {
+    try {
+      const env = window.PortalApp && window.PortalApp.Env;
+      if (env && typeof env.getDatasetKey === "function") return env.getDatasetKey();
+    } catch (_) {}
+    const k = (window.PORTALSTATE_DATASET || "").toString().trim().toLowerCase();
+    return k || "stable";
+  }
+
+  const DATASET_KEY = getDatasetKey();
+  const LAST_SYNC_KEY = `ats_portal_last_sync_date_v1:${DATASET_KEY}`;
 
   function localDateKey(d = new Date()) {
     const y = d.getFullYear();
@@ -10,7 +20,7 @@
 
   function pad(n) { return String(n).padStart(2, "0"); }
 
-  // YYMMDD-HHMM.json
+  // YYMMDD-HHMM-[dataset].json
   function filename() {
     const d = new Date();
     const yy = String(d.getFullYear()).slice(-2);
@@ -18,7 +28,7 @@
     const dd = pad(d.getDate());
     const hh = pad(d.getHours());
     const mi = pad(d.getMinutes());
-    return `${yy}${mm}${dd}-${hh}${mi}.json`;
+    return `${yy}${mm}${dd}-${hh}${mi}-${DATASET_KEY}.json`;
   }
 
   function download(text, name) {
@@ -38,7 +48,6 @@
   }
 
   function setButtonState(btn, mode) {
-    // mode: "good" | "stale" | "busy"
     btn.classList.toggle("sync-good", mode === "good");
     btn.classList.toggle("sync-stale", mode === "stale");
     btn.classList.toggle("sync-busy", mode === "busy");
@@ -64,7 +73,6 @@
   }
 
   function initSyncUI() {
-    // Hide extra text if present
     const syncText = document.getElementById("sync-text");
     if (syncText) syncText.style.display = "none";
 
@@ -82,13 +90,11 @@
       syncBtn.dataset.bound = "1";
 
       syncBtn.addEventListener("click", async (e) => {
-        // Shift+Click = local IMPORT
         if (e.shiftKey) {
           syncFile.click();
           return;
         }
 
-        // Ctrl+Click = local EXPORT
         if (e.ctrlKey || e.metaKey) {
           const json = store.exportAll();
           download(json, filename());
@@ -97,7 +103,6 @@
           return;
         }
 
-        // Alt+Click = CLOUD PULL (then reload)
         if (e.altKey) {
           if (typeof store.forcePull !== "function") return;
 
@@ -106,19 +111,16 @@
           markSyncedToday();
           updateSyncUI();
 
-          // If pull worked, reload to re-init widgets with pulled state
           if (res?.ok) location.reload();
           return;
         }
 
-        // Normal click = CLOUD PUSH (fallback to local export if cloud isn't available)
         if (typeof store.forcePush === "function") {
           setButtonState(syncBtn, "busy");
           const res = await store.forcePush();
           markSyncedToday();
           updateSyncUI();
 
-          // If cloud push failed, at least dump a local backup (better than nothing)
           if (!res?.ok) {
             const json = store.exportAll();
             download(json, filename());
@@ -127,7 +129,6 @@
           return;
         }
 
-        // No cloud support: do local export
         const json = store.exportAll();
         download(json, filename());
         markSyncedToday();
