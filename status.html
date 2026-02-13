@@ -3,42 +3,260 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Status</title>
+  <title>Status Monitor</title>
 
   <link rel="icon" href="favicon.ico" />
   <link rel="stylesheet" href="css/styles.css" />
   <link rel="stylesheet" href="css/nav.css" />
 
   <style>
-    .page-shell {
+    .page-shell{
       max-width: 1100px;
       margin: 0 auto;
       padding: 90px 18px 28px 18px; /* top padding clears hamburger */
       box-sizing: border-box;
     }
-    .page-title {
+    .page-title{
       font-size: 22px;
       letter-spacing: 0.12em;
       text-transform: uppercase;
       opacity: 0.9;
-      margin: 0 0 10px 0;
+      margin: 0 0 12px 0;
     }
-    .page-card {
+
+    .sm-top{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: stretch;
+      margin-bottom: 14px;
+    }
+
+    .sm-summary{
+      flex: 0 0 280px;
+      min-width: 260px;
       border: 1px solid rgba(255,255,255,0.10);
       background: rgba(0,0,0,0.35);
       border-radius: 14px;
-      padding: 16px;
+      padding: 14px;
+      box-sizing: border-box;
     }
-    .page-note {
-      opacity: 0.75;
-      line-height: 1.45;
+
+    .sm-summaryTitle{
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.85;
+      margin-bottom: 10px;
     }
-    a.inline-link {
-      color: inherit;
-      text-decoration: underline;
-      opacity: 0.9;
+
+    .sm-stats{ display: grid; gap: 8px; }
+
+    .sm-statRow{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      font-size: 12px;
+      color: rgba(255,255,255,0.88);
+    }
+
+    .sm-pill{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(0,0,0,0.35);
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .sm-dot{
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.35);
+    }
+
+    .sm-pill.down{
+      background: var(--badBg);
+      border-color: var(--badBorder);
+      color: var(--badText);
+    }
+    .sm-pill.down .sm-dot{ background: var(--badDot); }
+
+    .sm-pill.reduced{
+      background: rgba(61, 44, 0, 0.70);
+      border-color: rgba(142, 106, 0, 0.85);
+      color: rgba(255, 236, 180, 0.95);
+    }
+    .sm-pill.reduced .sm-dot{ background: rgba(255, 191, 0, 0.95); }
+
+    .sm-pill.complete{
+      background: var(--goodBg);
+      border-color: var(--goodBorder);
+      color: var(--goodText);
+    }
+    .sm-pill.complete .sm-dot{ background: var(--goodDot); }
+
+    .sm-pill.open{
+      background: rgba(0,0,0,0.35);
+      border-color: rgba(255,255,255,0.14);
+      color: rgba(255,255,255,0.92);
+    }
+    .sm-pill.open .sm-dot{ background: rgba(255,255,255,0.35); }
+
+    .sm-meta{
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--muted);
+      display: grid;
+      gap: 6px;
+    }
+    .sm-metaLine{ opacity: 0.88; }
+
+    .sm-list{ display: grid; gap: 10px; }
+
+    .sm-row{
+      border-radius: 12px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .sm-row.is-down{
+      background: rgba(42, 11, 11, 0.50);
+      border-color: rgba(90, 28, 28, 0.90);
+    }
+    .sm-row.is-reduced{
+      background: rgba(61, 44, 0, 0.45);
+      border-color: rgba(142, 106, 0, 0.70);
+    }
+    .sm-row.is-complete{
+      background: rgba(11, 42, 18, 0.42);
+      border-color: rgba(31, 90, 42, 0.85);
+    }
+
+    .sm-rowTop{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      padding: 8px 10px;
+      align-items: center;
+    }
+
+    .sm-rowMain{ min-width: 0; }
+
+    .sm-asset{
+      font-weight: 900;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sm-desc{
+      font-size: 13px;
+      color: var(--muted);
+      word-break: break-word;
+      margin-top: 2px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .sm-wo{
+      font-size: 12px;
+      opacity: 0.78;
+      margin-top: 2px;
+    }
+
+    .sm-right{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sm-toggle{
+      width: 28px;
+      height: 28px;
+      font-size: 20px;
+      border-radius: 10px;
+      border: 1px solid var(--btnBorder);
+      background: var(--btn);
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 900;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .sm-toggle:hover{ background: var(--btnHover); }
+    .sm-toggle:active{ transform: translateY(1px); }
+
+    .sm-details{
+      display: none;
+      padding: 10px 10px 12px 10px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.22);
+    }
+
+    .sm-card{
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .sm-field{
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.25);
+      min-width: 0;
+    }
+
+    .sm-label{
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.65;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sm-value{
+      font-size: 12px;
+      color: rgba(255,255,255,0.90);
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .sm-empty{
+      padding: 6px 2px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 720px){
+      .sm-summary{ flex: 1 1 100%; }
+      .sm-rowTop{ grid-template-columns: 1fr; gap: 10px; }
+      .sm-right{ justify-content: flex-start; }
+      .sm-desc{ -webkit-line-clamp: 3; }
+      .sm-card{ grid-template-columns: 1fr; }
     }
   </style>
+
+  <script src="js/config.js?v=20260213_02" defer></script>
+  <script src="js/statusPage.js?v=20260213_01" defer></script>
 </head>
 
 <body>
@@ -49,17 +267,47 @@
   <div id="atsEnvMarker" class="ats-env-marker" aria-label="Dataset"></div>
 
   <div class="page-shell">
-    <h1 class="page-title">Status</h1>
-    <div class="page-card">
-      <p class="page-note">
-        This page is a placeholder for now. Eventually it’ll hold deeper info and configuration for widgets.
-      </p>
-      <p class="page-note">
-        Go back to <a class="inline-link" href="./index.html">Home</a>.
-      </p>
+    <h1 class="page-title">Status Monitor</h1>
+
+    <div class="sm-top">
+      <section class="sm-summary" aria-label="Status summary">
+        <div class="sm-summaryTitle">Live Summary</div>
+
+        <div class="sm-stats">
+          <div class="sm-statRow">
+            <div>Open</div>
+            <div class="sm-pill open"><span class="sm-dot"></span><span id="smOpenCount">0</span></div>
+          </div>
+          <div class="sm-statRow">
+            <div>Down</div>
+            <div class="sm-pill down"><span class="sm-dot"></span><span id="smDownCount">0</span></div>
+          </div>
+          <div class="sm-statRow">
+            <div>Reduced</div>
+            <div class="sm-pill reduced"><span class="sm-dot"></span><span id="smReducedCount">0</span></div>
+          </div>
+          <div class="sm-statRow">
+            <div>Completed</div>
+            <div class="sm-pill complete"><span class="sm-dot"></span><span id="smCompleteCount">0</span></div>
+          </div>
+        </div>
+
+        <div class="sm-meta">
+          <div class="sm-metaLine" id="smUpdated">Last update: —</div>
+          <div class="sm-metaLine">Completed entries show green until midnight, then get deleted from the sheet.</div>
+        </div>
+      </section>
+
+      <section class="widget" style="flex:1 1 520px; margin:0;">
+        <div class="widgetHeader">
+          <div class="widgetTitle">Escalations</div>
+          <button id="smRefresh" class="btn subtle" type="button" aria-label="Refresh status">Refresh</button>
+        </div>
+        <div id="smList" class="sm-list">Loading status…</div>
+      </section>
     </div>
   </div>
 
-  <script src="js/nav.js?v=20260212_03"></script>
+  <script src="js/nav.js?v=20260213_02"></script>
 </body>
 </html>
