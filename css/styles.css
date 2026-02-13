@@ -1368,3 +1368,30 @@ body{
   text-transform: uppercase;
   margin: 3px 0;
 }
+
+/* ===== Backlog: mobile 3-line layout (Task / Description / Status+Toggle) ===== */
+@media (max-width: 520px){
+  .backlogRowTop{
+    grid-template-columns: 1fr auto !important;
+    grid-template-areas:
+      "task task"
+      "desc desc"
+      "status toggle" !important;
+    row-gap: 6px !important;
+    column-gap: 10px !important;
+    align-items: start !important;
+  }
+
+  .backlogTask{ grid-area: task; }
+  .backlogDesc{ grid-area: desc; }
+
+  .backlogStatusSlot{
+    grid-area: status;
+    justify-content: flex-start !important;
+  }
+
+  .backlogToggle{
+    grid-area: toggle;
+    justify-self: end !important;
+  }
+}
