@@ -1166,6 +1166,32 @@ body{
   display: block;
 }
 
+/* Backlog page (editable): status dropdown bar */
+.backlogDetailsBar{
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.backlogStatusSelect{
+  max-width: 240px;
+  width: 100%;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.35);
+  color: var(--text);
+  padding: 6px 10px;
+  box-sizing: border-box;
+  font-size: 12px;
+}
+
+@media (max-width: 560px){
+  .backlogDetailsBar{ justify-content: stretch; }
+  .backlogStatusSelect{ max-width: none; }
+}
+
 .backlogCard{
   background: var(--panel);
   border: 1px solid var(--border);

@@ -1,10 +1,12 @@
 /* sw.js - WEBZ v2 PWA
    Static shell caching + offline fallback.
    - Navigations: network-first, fallback to cached index.html
-   - Static assets: cache-first, ignoring query strings (e.g. ?v=20260128_2)
+   - Scripts/styles: network-first with cache fallback (so updates actually land)
+   - Images/fonts: cache-first, ignoring query strings to keep the cache tidy
 */
 const CACHE_PREFIX = "webzv2-cache-";
-const CACHE_NAME = CACHE_PREFIX + "v1";
+// Cache version. Bump when SW behavior changes.
+const CACHE_NAME = CACHE_PREFIX + "v2";
 const CORE = ["./", "./index.html", "./manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -44,7 +46,25 @@ self.addEventListener("fetch", (event) => {
   const isStatic = ["style", "script", "image", "font"].includes(req.destination);
   if (!isStatic) return;
 
-  // ignore query strings for caching
+  // Scripts/styles: network-first so you actually get updates (and ?v=... works).
+  if (req.destination === "script" || req.destination === "style") {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        try {
+          const res = await fetch(req);
+          if (res && res.ok) cache.put(req, res.clone());
+          return res;
+        } catch (_) {
+          const cached = await cache.match(req);
+          if (cached) return cached;
+          throw _;
+        }
+      })
+    );
+    return;
+  }
+
+  // Images/fonts: cache-first, and ignore query strings to keep the cache tidy.
   const cacheKey = "." + url.pathname;
 
   event.respondWith(
