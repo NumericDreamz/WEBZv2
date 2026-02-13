@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  console.log("[BacklogWidget] build 2026-02-13_02 loaded");
+  console.log("[BacklogWidget] build 2026-02-13_03 loaded");
 
   window.PortalWidgets = window.PortalWidgets || {};
 
@@ -129,12 +129,16 @@
       "task","description","Task","Description","Desc",
       "Task ID","TaskId","Task Number","Task #","id"
     ]);
+    const ignoreLower = new Set([
+      "status",
+      "backlog status"
+    ]);
 
     let keys = Array.isArray(columns) && columns.length
       ? columns.map(c => String(c || "").trim()).filter(Boolean)
       : Object.keys(raw);
 
-    keys = keys.filter(k => !ignore.has(k));
+    keys = keys.filter(k => !ignore.has(k) && !ignoreLower.has(String(k).toLowerCase()));
 
     if (!keys.length) return `<div class="backlogMsg">No additional fields.</div>`;
 
