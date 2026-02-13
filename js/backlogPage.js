@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  console.log("[BacklogPage] build 2026-02-13_02 loaded");
+  console.log("[BacklogPage] build 2026-02-13_03 loaded");
 
   const DEFAULTS = { limit: 200, timeoutMs: 10000 };
   const STATUS_KEY = "backlog_status_map_v1";
@@ -186,12 +186,16 @@
       "task","description","Task","Description","Desc",
       "Task ID","TaskId","Task Number","Task #","id"
     ]);
+    const ignoreLower = new Set([
+      "status",
+      "backlog status"
+    ]);
 
     let keys = Array.isArray(columns) && columns.length
       ? columns.map(c => String(c || "").trim()).filter(Boolean)
       : Object.keys(raw);
 
-    keys = keys.filter(k => !ignore.has(k));
+    keys = keys.filter(k => !ignore.has(k) && !ignoreLower.has(String(k).toLowerCase()));
 
     if (!keys.length) return `<div class="backlogMsg">No additional fields for this row.</div>`;
 
