@@ -1,11 +1,11 @@
 (function () {
   "use strict";
 
-  console.log("[BacklogPage] build 2026-02-13_01 loaded");
+  console.log("[BacklogPage] build 2026-02-13_02 loaded");
 
   const DEFAULTS = { limit: 200, timeoutMs: 10000 };
-  const STATUS_KEY = "backlog_status_map_v1";       // already used by index widget
-  const NOTES_KEY  = "backlog_notes_map_v1";        // new: notes only for this page
+  const STATUS_KEY = "backlog_status_map_v1";
+  const NOTES_KEY  = "backlog_notes_map_v1";
 
   const STATUS_OPTIONS = [
     { value: "", label: "(unassigned)" },
@@ -58,7 +58,6 @@
   }
 
   function getConfig() {
-    // Back-compat globals are set by config.js
     return {
       webAppUrl: (window.PORTALSTATE_WEBAPP_URL || "").toString().trim(),
       token: (window.PORTALSTATE_TOKEN || "").toString().trim()
@@ -167,7 +166,7 @@
     if (status === "awaiting_parts") return { cls: "backlogStatus-awaiting_parts", text: "Awaiting Parts" };
     if (status === "on_order")       return { cls: "backlogStatus-on_order",       text: "On Order" };
     if (status === "scheduled")      return { cls: "backlogStatus-scheduled",      text: "Scheduled" };
-    return null; // complete = row highlight
+    return null;
   }
 
   function applyStatusToRow(rowEl, status) {
@@ -228,13 +227,7 @@
   }
 
   function calcSummary(items, statusMap) {
-    const counts = {
-      awaiting_parts: 0,
-      on_order: 0,
-      scheduled: 0,
-      complete: 0,
-      "": 0
-    };
+    const counts = { awaiting_parts: 0, on_order: 0, scheduled: 0, complete: 0, "": 0 };
 
     items.forEach((item, idx) => {
       const taskRaw = String(pickTask(item) ?? "").trim();
@@ -261,7 +254,6 @@
     const sw = 10;
     const C = 2 * Math.PI * r;
 
-    // Base ring
     let svg = `
       <svg viewBox="0 0 120 120" aria-hidden="true">
         <circle class="seg-base" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="${sw}" />
@@ -270,7 +262,6 @@
     if (total > 0) {
       let offset = 0;
 
-      // draw in a stable order so the ring doesn't reshuffle visually
       const segs = [
         { key: "awaiting_parts", cls: "seg-awaiting_parts" },
         { key: "on_order",       cls: "seg-on_order" },
@@ -284,7 +275,6 @@
         if (!n) continue;
 
         const len = (n / total) * C;
-        // circle segments via dasharray + dashoffset
         svg += `
           <circle
             class="${s.cls}"
@@ -302,12 +292,9 @@
 
     svg += `</svg>`;
 
-    // Inject SVG behind the center label
-    // Keep the center overlay intact
     const center = donutHost.querySelector(".bl-donutCenter");
     donutHost.innerHTML = svg + (center ? center.outerHTML : "");
 
-    // Legend
     function pct(n) {
       if (!total) return "0%";
       return Math.round((n / total) * 100) + "%";
@@ -332,6 +319,26 @@
     }).join("");
   }
 
+  function renderNotesBody(taskKey, notesMap) {
+    const notes = Array.isArray(notesMap[taskKey]) ? notesMap[taskKey].slice() : [];
+    notes.sort((a, b) => {
+      const ad = String(a?.date || "");
+      const bd = String(b?.date || "");
+      if (ad !== bd) return ad.localeCompare(bd);
+      return (Number(a?.createdAt || 0) - Number(b?.createdAt || 0));
+    });
+
+    if (!notes.length) return `<div class="backlogMsg">No notes yet.</div>`;
+
+    return `<ul class="bl-notesList">` + notes.map(n => `
+      <li data-note-id="${esc(n.id)}">
+        <span class="bl-noteDateTag">${esc(n.date || "????-??-??")}</span>
+        ${esc(n.text || "")}
+        <button class="bl-noteDel" type="button" data-action="del-note" aria-label="Delete note">✕</button>
+      </li>
+    `).join("") + `</ul>`;
+  }
+
   function renderBacklog(host, items, columns, statusMap, notesMap) {
     host.innerHTML = "";
 
@@ -346,24 +353,6 @@
         const sel = (o.value === status) ? "selected" : "";
         return `<option value="${esc(o.value)}" ${sel}>${esc(o.label)}</option>`;
       }).join("");
-
-      const notes = Array.isArray(notesMap[taskKey]) ? notesMap[taskKey].slice() : [];
-      notes.sort((a, b) => {
-        const ad = String(a?.date || "");
-        const bd = String(b?.date || "");
-        if (ad !== bd) return ad.localeCompare(bd);
-        return (Number(a?.createdAt || 0) - Number(b?.createdAt || 0));
-      });
-
-      const notesHtml = notes.length
-        ? `<ul class="bl-notesList">` + notes.map(n => `
-            <li data-note-id="${esc(n.id)}">
-              <span class="bl-noteDateTag">${esc(n.date || "????-??-??")}</span>
-              ${esc(n.text || "")}
-              <button class="bl-noteDel" type="button" data-action="del-note" aria-label="Delete note">✕</button>
-            </li>
-          `).join("") + `</ul>`
-        : `<div class="backlogMsg">No notes yet.</div>`;
 
       const row = document.createElement("div");
       row.className = "backlogRow";
@@ -386,18 +375,17 @@
 
           <div class="bl-notes" aria-label="Notes">
             <div class="bl-notesHead">
-              <div class="bl-notesTitle">Notes</div>
-              <div class="bl-notesHint">Dated bullets are stored only for this page.</div>
+              <div class="bl-notesHeadLeft">
+                <div class="bl-notesTitle">Notes</div>
+                <div class="bl-notesHint">Stored only for this page.</div>
+              </div>
+              <div class="bl-notesHeadRight">
+                <button class="btn" type="button" data-action="open-note" aria-label="Add note">+</button>
+              </div>
             </div>
 
             <div class="bl-notesBody">
-              ${notesHtml}
-            </div>
-
-            <div class="bl-compose">
-              <input class="bl-date" type="date" value="${esc(todayISO())}" data-role="note-date" aria-label="Note date">
-              <textarea class="bl-text" rows="1" data-role="note-text" placeholder="Paste technician note…"></textarea>
-              <button class="bl-addBtn" type="button" data-action="add-note">Add Note</button>
+              ${renderNotesBody(taskKey, notesMap)}
             </div>
           </div>
 
@@ -410,12 +398,35 @@
     });
   }
 
+  function openNoteModal(taskKey) {
+    const modal = $("blNoteModal");
+    const dateEl = modal ? modal.querySelector('[data-role="bl-note-date"]') : null;
+    const textEl = modal ? modal.querySelector('[data-role="bl-note-text"]') : null;
+    if (!modal || !dateEl || !textEl) return;
+
+    modal.dataset.taskKey = taskKey;
+    dateEl.value = todayISO();
+    textEl.value = "";
+
+    modal.classList.add("rt-open");
+    modal.setAttribute("aria-hidden", "false");
+    setTimeout(() => textEl.focus(), 0);
+  }
+
+  function closeNoteModal() {
+    const modal = $("blNoteModal");
+    if (!modal) return;
+    modal.classList.remove("rt-open");
+    modal.setAttribute("aria-hidden", "true");
+    delete modal.dataset.taskKey;
+  }
+
   async function boot() {
     const host = $("backlogList");
     const refreshBtn = $("blRefresh");
+    const modal = $("blNoteModal");
     if (!host) return;
 
-    // Pull remote state first so notes/status are up-to-date
     const store = getStore();
     if (store && typeof store.init === "function") {
       try { await store.init(); }
@@ -451,7 +462,6 @@
       refreshBtn.addEventListener("click", reload);
     }
 
-    // Delegated events for expand/status/notes
     if (!host.dataset.bound) {
       host.dataset.bound = "1";
 
@@ -469,71 +479,34 @@
           return;
         }
 
-        const actionBtn = t && t.closest ? t.closest("button[data-action]") : null;
-        if (!actionBtn) return;
-
-        const row = actionBtn.closest(".backlogRow");
-        if (!row) return;
-
-        const taskKey = row.dataset.taskKey || "";
-        if (!taskKey) return;
-
-        const action = actionBtn.dataset.action || "";
-
-        if (action === "add-note") {
-          const dateEl = row.querySelector('[data-role="note-date"]');
-          const textEl = row.querySelector('[data-role="note-text"]');
-
-          const date = normalizeText(dateEl ? dateEl.value : "") || todayISO();
-          const text = normalizeText(textEl ? textEl.value : "");
-          if (!text) return;
-
-          const notesMap = safeLoad(NOTES_KEY);
-          const arr = Array.isArray(notesMap[taskKey]) ? notesMap[taskKey] : [];
-          arr.push({ id: uid(), date, text, createdAt: Date.now() });
-
-          // basic prune: keep last 75 notes per task
-          if (arr.length > 75) arr.splice(0, arr.length - 75);
-
-          notesMap[taskKey] = arr;
-          safeSave(NOTES_KEY, notesMap);
-
-          // re-render this row's notes area only
-          const body = row.querySelector(".bl-notesBody");
-          if (body) {
-            const sorted = arr.slice().sort((a,b)=>{
-              const ad = String(a?.date||"");
-              const bd = String(b?.date||"");
-              if(ad !== bd) return ad.localeCompare(bd);
-              return Number(a?.createdAt||0) - Number(b?.createdAt||0);
-            });
-
-            body.innerHTML = `<ul class="bl-notesList">` + sorted.map(n => `
-              <li data-note-id="${esc(n.id)}">
-                <span class="bl-noteDateTag">${esc(n.date || "????-??-??")}</span>
-                ${esc(n.text || "")}
-                <button class="bl-noteDel" type="button" data-action="del-note" aria-label="Delete note">✕</button>
-              </li>
-            `).join("") + `</ul>`;
-          }
-
-          if (textEl) textEl.value = "";
+        const openNoteBtn = t && t.closest ? t.closest('button[data-action="open-note"]') : null;
+        if (openNoteBtn) {
+          const row = openNoteBtn.closest(".backlogRow");
+          if (!row) return;
+          const taskKey = row.dataset.taskKey || "";
+          if (!taskKey) return;
+          openNoteModal(taskKey);
           return;
         }
 
-        if (action === "del-note") {
-          const li = actionBtn.closest("li[data-note-id]");
-          const noteId = li ? li.getAttribute("data-note-id") : "";
-          if (!noteId) return;
+        const delBtn = t && t.closest ? t.closest('button[data-action="del-note"]') : null;
+        if (delBtn) {
+          const row = delBtn.closest(".backlogRow");
+          const li = delBtn.closest("li[data-note-id]");
+          if (!row || !li) return;
+
+          const taskKey = row.dataset.taskKey || "";
+          const noteId = li.getAttribute("data-note-id") || "";
+          if (!taskKey || !noteId) return;
 
           const notesMap = safeLoad(NOTES_KEY);
           const arr = Array.isArray(notesMap[taskKey]) ? notesMap[taskKey] : [];
-          const next = arr.filter(n => String(n.id) !== String(noteId));
-          notesMap[taskKey] = next;
+          notesMap[taskKey] = arr.filter(n => String(n.id) !== String(noteId));
           safeSave(NOTES_KEY, notesMap);
 
-          // remove the li from DOM
-          if (li && li.parentNode) li.parentNode.removeChild(li);
+          const body = row.querySelector(".bl-notesBody");
+          if (body) body.innerHTML = renderNotesBody(taskKey, notesMap);
+
           return;
         }
       });
@@ -555,6 +528,61 @@
         safeSave(STATUS_KEY, statusMap);
         applyStatusToRow(row, value);
         renderDonut(calcSummary(lastItems, statusMap));
+      });
+    }
+
+    // Modal events
+    if (modal && !modal.dataset.bound) {
+      modal.dataset.bound = "1";
+
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+          closeNoteModal();
+          return;
+        }
+
+        const btn = e.target.closest("button");
+        if (!btn) return;
+
+        const action = btn.dataset.action || "";
+        if (action === "close-note-modal") {
+          closeNoteModal();
+          return;
+        }
+
+        if (action === "add-note-modal") {
+          const taskKey = modal.dataset.taskKey || "";
+          const dateEl = modal.querySelector('[data-role="bl-note-date"]');
+          const textEl = modal.querySelector('[data-role="bl-note-text"]');
+          const date = normalizeText(dateEl ? dateEl.value : "") || todayISO();
+          const text = normalizeText(textEl ? textEl.value : "");
+
+          if (!taskKey || !text) return;
+
+          const notesMap = safeLoad(NOTES_KEY);
+          const arr = Array.isArray(notesMap[taskKey]) ? notesMap[taskKey] : [];
+          arr.push({ id: uid(), date, text, createdAt: Date.now() });
+
+          if (arr.length > 75) arr.splice(0, arr.length - 75);
+          notesMap[taskKey] = arr;
+
+          safeSave(NOTES_KEY, notesMap);
+
+          // update the visible row notes
+          const row = host.querySelector(`.backlogRow[data-task-key="${CSS.escape(taskKey)}"]`);
+          const body = row ? row.querySelector(".bl-notesBody") : null;
+          if (body) body.innerHTML = renderNotesBody(taskKey, notesMap);
+
+          closeNoteModal();
+        }
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (!modal.classList.contains("rt-open")) return;
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeNoteModal();
+        }
       });
     }
 
