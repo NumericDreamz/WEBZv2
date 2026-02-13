@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  console.log("[BacklogPage] build 2026-02-13_03 loaded");
+  console.log("[BacklogPage] build 2026-02-13_04 loaded");
 
   const DEFAULTS = { limit: 200, timeoutMs: 10000 };
   const STATUS_KEY = "backlog_status_map_v1";
@@ -338,7 +338,7 @@
       <li data-note-id="${esc(n.id)}">
         <span class="bl-noteDateTag">${esc(n.date || "????-??-??")}</span>
         ${esc(n.text || "")}
-        <button class="bl-noteDel" type="button" data-action="del-note" aria-label="Delete note">✕</button>
+        <button class="bl-noteDel" type="button" data-action="del-note" aria-label="Delete note">−</button>
       </li>
     `).join("") + `</ul>`;
   }
@@ -385,6 +385,7 @@
               </div>
               <div class="bl-notesHeadRight">
                 <button class="btn" type="button" data-action="open-note" aria-label="Add note">+</button>
+                <button class="btn subtle bl-notesEditBtn" type="button" data-action="toggle-notes-edit" aria-label="Edit notes" aria-pressed="false" title="Toggle delete mode">✎</button>
               </div>
             </div>
 
@@ -493,11 +494,28 @@
           return;
         }
 
+        const editNotesBtn = t && t.closest ? t.closest('button[data-action="toggle-notes-edit"]') : null;
+        if (editNotesBtn) {
+          const row = editNotesBtn.closest(".backlogRow");
+          if (!row) return;
+
+          const box = row.querySelector(".bl-notes");
+          if (!box) return;
+
+          const on = box.classList.toggle("is-editing");
+          editNotesBtn.setAttribute("aria-pressed", on ? "true" : "false");
+          editNotesBtn.classList.toggle("is-active", on);
+          return;
+        }
+
         const delBtn = t && t.closest ? t.closest('button[data-action="del-note"]') : null;
         if (delBtn) {
           const row = delBtn.closest(".backlogRow");
           const li = delBtn.closest("li[data-note-id]");
           if (!row || !li) return;
+
+          const box = row.querySelector(".bl-notes");
+          if (!box || !box.classList.contains("is-editing")) return;
 
           const taskKey = row.dataset.taskKey || "";
           const noteId = li.getAttribute("data-note-id") || "";
