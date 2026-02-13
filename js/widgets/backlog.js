@@ -1,14 +1,13 @@
 (function () {
   "use strict";
 
-  console.log("[Backlog] widget build 2026-02-10_01 loaded");
+  console.log("[BacklogWidget] build 2026-02-13_03 loaded");
 
-  const DEFAULTS = { limit: 50, timeoutMs: 10000 };
+  window.PortalWidgets = window.PortalWidgets || {};
+
   const STATUS_KEY = "backlog_status_map_v1";
 
-  function $(id) { return document.getElementById(id); }
-
-  function escapeHtml(s) {
+  function esc(s) {
     return String(s ?? "")
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
@@ -17,9 +16,8 @@
       .replaceAll("'", "&#039;");
   }
 
-  function setMsg(host, msg) {
-    if (!host) return;
-    host.innerHTML = `<div class="backlogMsg">${escapeHtml(msg)}</div>`;
+  function normalizeText(raw) {
+    return String(raw || "").trim().replace(/\s+/g, " ");
   }
 
   function getConfig() {
@@ -30,17 +28,17 @@
   }
 
   function getStore() {
-    return window.PortalApp && window.PortalApp.Storage ? window.PortalApp.Storage : null;
+    return (window.PortalApp && window.PortalApp.Storage) ? window.PortalApp.Storage : null;
   }
 
-  function loadStatusMap() {
+  function safeLoad(key) {
     const store = getStore();
     if (store && typeof store.load === "function") {
-      const m = store.load(STATUS_KEY);
-      return (m && typeof m === "object") ? { ...m } : {};
+      const v = store.load(key);
+      return (v && typeof v === "object") ? v : {};
     }
     try {
-      const raw = localStorage.getItem(STATUS_KEY);
+      const raw = localStorage.getItem(key);
       const obj = raw ? JSON.parse(raw) : {};
       return (obj && typeof obj === "object") ? obj : {};
     } catch {
@@ -48,16 +46,7 @@
     }
   }
 
-  function saveStatusMap(map) {
-    const store = getStore();
-    if (store && typeof store.save === "function") {
-      store.save(STATUS_KEY, map);
-      return;
-    }
-    try { localStorage.setItem(STATUS_KEY, JSON.stringify(map || {})); } catch (_) {}
-  }
-
-  function jsonp(url, timeoutMs = DEFAULTS.timeoutMs) {
+  function jsonp(url, timeoutMs = 9000) {
     return new Promise((resolve, reject) => {
       const cbName = "__backlog_cb_" + Date.now() + "_" + Math.floor(Math.random() * 1e6);
       const script = document.createElement("script");
@@ -127,37 +116,11 @@
     return String(v);
   }
 
-  const STATUS_OPTIONS = [
-    { value: "", label: "(none)" },
-    { value: "awaiting_parts", label: "Awaiting Parts" },
-    { value: "on_order", label: "On Order" },
-    { value: "scheduled", label: "Scheduled" },
-    { value: "complete", label: "Complete" }
-  ];
-
-  const STATUS_CLASS_LIST = [
-    "status-awaiting_parts",
-    "status-on_order",
-    "status-scheduled",
-    "status-complete"
-  ];
-
   function pillFor(status) {
     if (status === "awaiting_parts") return { cls: "backlogStatus-awaiting_parts", text: "Awaiting Parts" };
-    if (status === "on_order") return { cls: "backlogStatus-on_order", text: "On Order" };
-    if (status === "scheduled") return { cls: "backlogStatus-scheduled", text: "Scheduled" };
-    return null; // complete = highlight row
-  }
-
-  function applyStatusToRow(rowEl, status) {
-    for (const c of STATUS_CLASS_LIST) rowEl.classList.remove(c);
-    if (status) rowEl.classList.add("status-" + status);
-
-    const slot = rowEl.querySelector(".backlogStatusSlot");
-    if (!slot) return;
-
-    const p = pillFor(status);
-    slot.innerHTML = p ? `<div class="backlogStatusPill ${p.cls}">${escapeHtml(p.text)}</div>` : "";
+    if (status === "on_order")       return { cls: "backlogStatus-on_order",       text: "On Order" };
+    if (status === "scheduled")      return { cls: "backlogStatus-scheduled",      text: "Scheduled" };
+    return null;
   }
 
   function buildDetailsHtml(item, columns) {
@@ -166,14 +129,18 @@
       "task","description","Task","Description","Desc",
       "Task ID","TaskId","Task Number","Task #","id"
     ]);
+    const ignoreLower = new Set([
+      "status",
+      "backlog status"
+    ]);
 
     let keys = Array.isArray(columns) && columns.length
       ? columns.map(c => String(c || "").trim()).filter(Boolean)
       : Object.keys(raw);
 
-    keys = keys.filter(k => !ignore.has(k));
+    keys = keys.filter(k => !ignore.has(k) && !ignoreLower.has(String(k).toLowerCase()));
 
-    if (!keys.length) return `<div class="backlogMsg">No additional fields for this row.</div>`;
+    if (!keys.length) return `<div class="backlogMsg">No additional fields.</div>`;
 
     let html = `<div class="backlogCard">`;
     for (const k of keys) {
@@ -181,27 +148,53 @@
       const isEmpty = !val.trim();
       html += `
         <div class="backlogField">
-          <div class="backlogLabel" title="${escapeHtml(k)}">${escapeHtml(k)}</div>
-          <div class="backlogValue ${isEmpty ? "is-empty" : ""}">${escapeHtml(isEmpty ? "—" : val)}</div>
+          <div class="backlogLabel" title="${esc(k)}">${esc(k)}</div>
+          <div class="backlogValue ${isEmpty ? "is-empty" : ""}">${esc(isEmpty ? "—" : val)}</div>
         </div>`;
     }
     html += `</div>`;
     return html;
   }
 
-  function render(host, items, columns, statusMap) {
-    host.innerHTML = "";
+  function applyStatusToRow(rowEl, status) {
+    rowEl.classList.remove("status-awaiting_parts","status-on_order","status-scheduled","status-complete");
+    if (status) rowEl.classList.add("status-" + status);
+
+    const slot = rowEl.querySelector(".backlogStatusSlot");
+    if (!slot) return;
+
+    const p = pillFor(status);
+    slot.innerHTML = p ? `<div class="backlogStatusPill ${esc(p.cls)}">${esc(p.text)}</div>` : "";
+  }
+
+  async function fetchBacklog(limit) {
+    const cfg = getConfig();
+    if (!cfg.webAppUrl || !cfg.token) throw new Error("Backlog config missing.");
+
+    const url =
+      cfg.webAppUrl +
+      (cfg.webAppUrl.includes("?") ? "&" : "?") +
+      "action=backlog" +
+      "&token=" + encodeURIComponent(cfg.token) +
+      "&limit=" + encodeURIComponent(String(limit || 50)) +
+      "&_=" + Date.now();
+
+    return jsonp(url);
+  }
+
+  function render(slot, items, columns, statusMap) {
+    if (!items.length) {
+      slot.innerHTML = `<div class="backlogMsg">No backlog items.</div>`;
+      return;
+    }
+
+    slot.innerHTML = "";
 
     items.forEach((item, idx) => {
-      const taskRaw = String(pickTask(item) ?? "").trim();
-      const desc = String(pickDesc(item) ?? "").trim();
+      const taskRaw = normalizeText(pickTask(item));
+      const desc = normalizeText(pickDesc(item));
       const taskKey = taskRaw || ("row_" + idx);
-      const status = statusMap[taskKey] || "";
-
-      const optionsHtml = STATUS_OPTIONS.map(o => {
-        const sel = (o.value === status) ? "selected" : "";
-        return `<option value="${escapeHtml(o.value)}" ${sel}>${escapeHtml(o.label)}</option>`;
-      }).join("");
+      const status = String(statusMap[taskKey] || "");
 
       const row = document.createElement("div");
       row.className = "backlogRow";
@@ -209,99 +202,56 @@
 
       row.innerHTML = `
         <div class="backlogRowTop">
-          <div class="backlogTask">${escapeHtml(taskRaw)}</div>
-          <div class="backlogDesc">${escapeHtml(desc)}</div>
+          <div class="backlogTask" title="${esc(taskRaw)}">${esc(taskRaw)}</div>
+          <div class="backlogDesc" title="${esc(desc)}">${esc(desc)}</div>
           <div class="backlogStatusSlot"></div>
           <button class="backlogToggle" type="button" aria-expanded="false" aria-label="Expand backlog item">+</button>
         </div>
-
         <div class="backlogDetails">
-          <div class="backlogDetailsBar">
-            <select class="backlogStatusSelect" aria-label="Backlog status">
-              ${optionsHtml}
-            </select>
-          </div>
           ${buildDetailsHtml(item, columns)}
         </div>
       `;
 
-      host.appendChild(row);
+      slot.appendChild(row);
       applyStatusToRow(row, status);
     });
-
-    if (!host.dataset.backlogBound) {
-      host.addEventListener("click", (e) => {
-        const btn = e.target && e.target.closest ? e.target.closest(".backlogToggle") : null;
-        if (!btn) return;
-        const row = btn.closest(".backlogRow");
-        if (!row) return;
-
-        const isExpanded = row.classList.toggle("is-expanded");
-        btn.textContent = isExpanded ? "-" : "+";
-        btn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
-      });
-
-      host.addEventListener("change", (e) => {
-        const sel = e.target && e.target.classList && e.target.classList.contains("backlogStatusSelect") ? e.target : null;
-        if (!sel) return;
-
-        const row = sel.closest(".backlogRow");
-        if (!row) return;
-
-        const taskKey = row.dataset.taskKey || "";
-        const value = String(sel.value || "");
-
-        const map = loadStatusMap();
-        if (!value) delete map[taskKey];
-        else map[taskKey] = value;
-
-        saveStatusMap(map);
-        applyStatusToRow(row, value);
-      });
-
-      host.dataset.backlogBound = "1";
-    }
   }
 
-  async function load(hostId, options = {}) {
-    const host = $(hostId);
-    if (!host) return;
+  window.PortalWidgets.Backlog = {
+    init: async function (slotId, opts) {
+      const slot = document.getElementById(slotId);
+      if (!slot) return;
 
-    setMsg(host, "Loading backlog…");
+      if (slot.dataset.backlogInited === "1") return;
+      slot.dataset.backlogInited = "1";
 
-    const cfg = getConfig();
-    if (!cfg.webAppUrl || !cfg.token) {
-      setMsg(host, "Backlog config missing (web app URL/token not found).");
-      return;
+      const limit = opts?.limit || 50;
+
+      try {
+        const res = await fetchBacklog(limit);
+        if (!res || res.ok !== true) throw new Error(res?.error || "Bad backlog response");
+
+        const items = Array.isArray(res.items) ? res.items : [];
+        const columns = Array.isArray(res.columns) ? res.columns : null;
+
+        const statusMap = safeLoad(STATUS_KEY);
+        render(slot, items, columns, statusMap);
+
+        slot.addEventListener("click", (e) => {
+          const btn = e.target.closest(".backlogToggle");
+          if (!btn) return;
+
+          const row = btn.closest(".backlogRow");
+          if (!row) return;
+
+          const isExpanded = row.classList.toggle("is-expanded");
+          btn.textContent = isExpanded ? "-" : "+";
+          btn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+        });
+      } catch (err) {
+        console.error("[BacklogWidget] load failed:", err);
+        slot.innerHTML = `<div class="backlogMsg">Backlog unavailable.</div>`;
+      }
     }
-
-    const limit = Number.isFinite(options.limit) ? options.limit : DEFAULTS.limit;
-
-    try {
-      const endpoint =
-        cfg.webAppUrl +
-        (cfg.webAppUrl.includes("?") ? "&" : "?") +
-        "action=backlog" +
-        "&token=" + encodeURIComponent(cfg.token) +
-        "&limit=" + encodeURIComponent(String(limit)) +
-        "&_=" + Date.now();
-
-      const res = await jsonp(endpoint, DEFAULTS.timeoutMs);
-
-      if (!res || res.ok !== true) throw new Error(res && res.error ? res.error : "Bad backlog response");
-
-      const items = Array.isArray(res.items) ? res.items : [];
-      const columns = Array.isArray(res.columns) ? res.columns : null;
-
-      const statusMap = loadStatusMap();
-      render(host, items, columns, statusMap);
-    } catch (err) {
-      console.error("[Backlog] load failed:", err);
-      setMsg(host, "Backlog unavailable.");
-    }
-  }
-
-  window.PortalWidgets = window.PortalWidgets || {};
-  window.PortalWidgets.Backlog = { init: (hostId, options) => load(hostId, options) };
-
+  };
 })();
