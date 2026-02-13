@@ -181,8 +181,12 @@
       line-height: 1.35;
       word-break: break-word;
       position: relative;
+      padding-right: 0;
+    }
+    .bl-notes.is-editing .bl-notesList li{
       padding-right: 34px;
     }
+
     .bl-noteDateTag{
       font-weight: 900;
       opacity: 0.95;
@@ -202,11 +206,14 @@
       cursor: pointer;
       font-weight: 900;
       line-height: 1;
-      display: inline-flex;
+      display: none;
       align-items: center;
       justify-content: center;
     }
     .bl-noteDel:hover{ background: var(--btnHover); }
+
+    .bl-notes.is-editing .bl-noteDel{ display: inline-flex; }
+    .bl-notesEditBtn.is-active{ background: var(--btnHover); }
 
     .bl-modalRow{
       display: grid;
@@ -244,7 +251,7 @@
   <script src="js/config.js?v=20260213_02" defer></script>
   <script src="js/storage.js?v=20260213_02" defer></script>
   <script src="js/persistence.js?v=20260213_02" defer></script>
-  <script src="js/backlogPage.js?v=20260213_03" defer></script>
+  <script src="js/backlogPage.js?v=20260213_04" defer></script>
 </head>
 
 <body>
