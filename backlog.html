@@ -10,35 +10,253 @@
   <link rel="stylesheet" href="css/nav.css" />
 
   <style>
-    .page-shell {
+    .page-shell{
       max-width: 1100px;
       margin: 0 auto;
-      padding: 90px 18px 28px 18px; /* top padding clears hamburger */
+      padding: 90px 18px 28px 18px; /* clears hamburger */
       box-sizing: border-box;
     }
-    .page-title {
+    .page-title{
       font-size: 22px;
       letter-spacing: 0.12em;
       text-transform: uppercase;
       opacity: 0.9;
-      margin: 0 0 10px 0;
+      margin: 0 0 12px 0;
     }
-    .page-card {
+
+    /* ===== Backlog header stats (donut) ===== */
+    .bl-top{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: stretch;
+      margin-bottom: 14px;
+    }
+
+    .bl-donutCard{
+      flex: 0 0 280px;
+      min-width: 260px;
       border: 1px solid rgba(255,255,255,0.10);
       background: rgba(0,0,0,0.35);
       border-radius: 14px;
-      padding: 16px;
+      padding: 14px;
+      box-sizing: border-box;
     }
-    .page-note {
+
+    .bl-donutWrap{
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .bl-donut{
+      position: relative;
+      width: 120px;
+      height: 120px;
+    }
+
+    .bl-donut svg{
+      width: 120px;
+      height: 120px;
+      display: block;
+      transform: rotate(-90deg);
+    }
+
+    .bl-donutCenter{
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      pointer-events: none;
+      transform: translateZ(0);
+    }
+
+    .bl-donutLabel{
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
       opacity: 0.75;
-      line-height: 1.45;
+      margin-bottom: 3px;
     }
-    a.inline-link {
-      color: inherit;
-      text-decoration: underline;
+    .bl-donutValue{
+      font-size: 26px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .bl-legend{
+      display: grid;
+      gap: 8px;
+      align-content: center;
+    }
+
+    .bl-legendRow{
+      display: grid;
+      grid-template-columns: 10px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+      color: rgba(255,255,255,0.86);
+    }
+
+    .bl-dot{
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.18);
+      box-sizing: border-box;
+    }
+
+    .bl-legendSub{
+      opacity: 0.7;
+      font-size: 11px;
+    }
+
+    /* Donut segment strokes (you can tweak these later) */
+    .seg-base{ stroke: rgba(255,255,255,0.10); }
+    .seg-unassigned{ stroke: rgba(255,255,255,0.25); }
+    .seg-awaiting_parts{ stroke: rgba(255,70,70,0.95); }
+    .seg-on_order{ stroke: rgba(255,205,80,0.95); }
+    .seg-scheduled{ stroke: rgba(80,255,150,0.95); }
+    .seg-complete{ stroke: rgba(110,200,255,0.95); }
+
+    .dot-unassigned{ background: rgba(255,255,255,0.25); }
+    .dot-awaiting_parts{ background: rgba(255,70,70,0.95); }
+    .dot-on_order{ background: rgba(255,205,80,0.95); }
+    .dot-scheduled{ background: rgba(80,255,150,0.95); }
+    .dot-complete{ background: rgba(110,200,255,0.95); }
+
+    /* ===== Notes UI inside expanded backlog row ===== */
+    .bl-notes{
+      margin: 10px 0 12px 0;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.25);
+    }
+
+    .bl-notesHead{
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .bl-notesTitle{
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
       opacity: 0.9;
     }
+    .bl-notesHint{
+      font-size: 11px;
+      opacity: 0.65;
+    }
+
+    .bl-notesList{
+      margin: 0;
+      padding-left: 18px; /* bullets */
+      display: grid;
+      gap: 6px;
+    }
+    .bl-notesList li{
+      color: rgba(255,255,255,0.88);
+      font-size: 12px;
+      line-height: 1.35;
+      word-break: break-word;
+      position: relative;
+      padding-right: 34px; /* room for delete button */
+    }
+    .bl-noteDateTag{
+      font-weight: 900;
+      opacity: 0.95;
+      margin-right: 6px;
+    }
+
+    .bl-noteDel{
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 28px;
+      height: 22px;
+      border-radius: 8px;
+      border: 1px solid var(--btnBorder);
+      background: var(--btn);
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 900;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .bl-noteDel:hover{ background: var(--btnHover); }
+
+    .bl-compose{
+      display: grid;
+      grid-template-columns: 140px 1fr auto;
+      gap: 10px;
+      margin-top: 10px;
+      align-items: start;
+    }
+
+    .bl-date{
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.35);
+      color: var(--text);
+      padding: 6px 10px;
+      box-sizing: border-box;
+    }
+
+    .bl-text{
+      min-height: 34px;
+      max-height: 140px;
+      resize: vertical;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.35);
+      color: var(--text);
+      padding: 7px 10px;
+      box-sizing: border-box;
+      font-family: inherit;
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .bl-addBtn{
+      height: 34px;
+      padding: 0 12px;
+      border-radius: 10px;
+      border: 1px solid var(--btnBorder);
+      background: var(--btn);
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .bl-addBtn:hover{ background: var(--btnHover); }
+
+    @media (max-width: 720px){
+      .bl-donutCard{ flex: 1 1 100%; }
+      .bl-compose{
+        grid-template-columns: 1fr;
+      }
+      .bl-addBtn{ width: 100%; }
+    }
   </style>
+
+  <!-- Needed here because this page actually uses remote state + synced notes/status -->
+  <script src="js/config.js?v=20260213_01" defer></script>
+  <script src="js/storage.js?v=20260213_01" defer></script>
+  <script src="js/persistence.js?v=20260213_01" defer></script>
+
+  <script src="js/backlogPage.js?v=20260213_01" defer></script>
 </head>
 
 <body>
@@ -50,13 +268,32 @@
 
   <div class="page-shell">
     <h1 class="page-title">Backlog</h1>
-    <div class="page-card">
-      <p class="page-note">
-        This page is a placeholder for now. Eventually it’ll hold deeper info and configuration for widgets.
-      </p>
-      <p class="page-note">
-        Go back to <a class="inline-link" href="./index.html">Home</a>.
-      </p>
+
+    <div class="bl-top">
+      <section class="bl-donutCard" aria-label="Backlog status summary">
+        <div class="bl-donutWrap">
+          <div class="bl-donut" id="blDonut">
+            <!-- JS injects SVG -->
+            <div class="bl-donutCenter">
+              <div class="bl-donutLabel">TOTAL</div>
+              <div class="bl-donutValue" id="blTotal">0</div>
+            </div>
+          </div>
+
+          <div class="bl-legend" id="blLegend">
+            <!-- JS injects legend rows -->
+            <div class="bl-legendSub">Loading…</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="widget" style="flex:1 1 520px; margin:0;">
+        <div class="widgetHeader">
+          <div class="widgetTitle">Backlog Items</div>
+          <button id="blRefresh" class="bl-addBtn" type="button" aria-label="Refresh backlog">Refresh</button>
+        </div>
+        <div id="backlogList" class="backlogList">Loading backlog…</div>
+      </section>
     </div>
   </div>
 
