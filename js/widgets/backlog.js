@@ -130,7 +130,6 @@
       "Task ID","TaskId","Task Number","Task #","id"
     ]);
     const ignoreLower = new Set([
-      "status",
       "backlog status"
     ]);
 
