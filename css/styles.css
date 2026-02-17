@@ -851,6 +851,138 @@ body{
    Backlog
    =========================== */
 
+/* Backlog widget (index): left indicator + right list */
+.backlogWidget .blw-grid{
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.backlogWidget .blw-viz{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.backlogWidget .blw-donut{
+  width: 176px;
+  height: 176px;
+  position: relative;
+}
+
+.backlogWidget .blw-donut svg{
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.backlogWidget .blw-donutCenter{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.backlogWidget .blw-totalLabel{
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  opacity: 0.9;
+}
+
+.backlogWidget .blw-totalVal{
+  font-size: 44px;
+  font-weight: 900;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.backlogWidget .blw-legend{
+  width: 100%;
+  display: grid;
+  gap: 8px;
+}
+
+.backlogWidget .blw-legendSub{
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  padding: 4px 0;
+}
+
+.backlogWidget .blw-legendRow{
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.backlogWidget .blw-dot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+/* Donut segment base + colors */
+.backlogWidget .seg-base{ stroke: rgba(255,255,255,0.10); }
+.backlogWidget .seg-awaiting_parts{ stroke: var(--badDot); }
+.backlogWidget .seg-on_order{ stroke: rgba(255,205,80,0.95); }
+.backlogWidget .seg-scheduled{ stroke: var(--goodDot); }
+.backlogWidget .seg-complete{ stroke: rgba(56,189,248,0.95); }
+.backlogWidget .seg-unassigned{ stroke: rgba(255,255,255,0.40); }
+
+/* Legend dots */
+.backlogWidget .dot-awaiting_parts{ background: var(--badDot); }
+.backlogWidget .dot-on_order{ background: rgba(255,205,80,0.95); }
+.backlogWidget .dot-scheduled{ background: var(--goodDot); }
+.backlogWidget .dot-complete{ background: rgba(56,189,248,0.95); }
+.backlogWidget .dot-unassigned{ background: rgba(255,255,255,0.40); }
+
+.backlogWidget .blw-listPane{ min-width: 0; }
+
+.backlogWidget .blw-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.backlogWidget .blw-headTitle{
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+@media (max-width: 600px){
+  .backlogWidget .blw-grid{ grid-template-columns: 1fr; }
+
+  /* Put donut + legend side-by-side above the list */
+  .backlogWidget .blw-viz{
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .backlogWidget .blw-donut{
+    width: 156px;
+    height: 156px;
+    flex: 0 0 auto;
+  }
+
+  .backlogWidget .blw-legend{ flex: 1; }
+  .backlogWidget .blw-legendSub{ text-align: left; padding-left: 2px; }
+}
+
 .backlogList{
   display: grid;
   gap: 10px;

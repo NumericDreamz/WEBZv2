@@ -1,11 +1,19 @@
 (function () {
   "use strict";
 
-  console.log("[BacklogWidget] build 2026-02-13_03 loaded");
+  console.log("[BacklogWidget] build 2026-02-17_01 loaded");
 
   window.PortalWidgets = window.PortalWidgets || {};
 
   const STATUS_KEY = "backlog_status_map_v1";
+
+  const STATUS_ORDER = [
+    { key: "awaiting_parts", label: "Awaiting Parts" },
+    { key: "on_order",       label: "On Order" },
+    { key: "scheduled",      label: "Scheduled" },
+    { key: "complete",       label: "Complete" },
+    { key: "",               label: "Unassigned" }
+  ];
 
   function esc(s) {
     return String(s ?? "")
@@ -166,6 +174,99 @@
     slot.innerHTML = p ? `<div class="backlogStatusPill ${esc(p.cls)}">${esc(p.text)}</div>` : "";
   }
 
+  function calcSummary(items, statusMap) {
+    const counts = { awaiting_parts: 0, on_order: 0, scheduled: 0, complete: 0, "": 0 };
+
+    items.forEach((item, idx) => {
+      const taskRaw = String(pickTask(item) ?? "").trim();
+      const taskKey = taskRaw || ("row_" + idx);
+      const st = String(statusMap[taskKey] || "");
+      if (Object.prototype.hasOwnProperty.call(counts, st)) counts[st] += 1;
+      else counts[""] += 1;
+    });
+
+    return { total: items.length, counts };
+  }
+
+  function renderIndicator(summary) {
+    const donutHost = document.getElementById("blwDonut");
+    const totalEl = document.getElementById("blwTotal");
+    const legendHost = document.getElementById("blwLegend");
+    if (!donutHost || !totalEl || !legendHost) return;
+
+    const total = summary?.total || 0;
+    totalEl.textContent = String(total);
+
+    const r = 46;
+    const cx = 60, cy = 60;
+    const sw = 10;
+    const C = 2 * Math.PI * r;
+
+    let svg = `
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="seg-base" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="${sw}" />
+    `;
+
+    if (total > 0) {
+      let offset = 0;
+
+      const segs = [
+        { key: "awaiting_parts", cls: "seg-awaiting_parts" },
+        { key: "on_order",       cls: "seg-on_order" },
+        { key: "scheduled",      cls: "seg-scheduled" },
+        { key: "complete",       cls: "seg-complete" },
+        { key: "",               cls: "seg-unassigned" }
+      ];
+
+      for (const s of segs) {
+        const n = summary.counts?.[s.key] || 0;
+        if (!n) continue;
+
+        const len = (n / total) * C;
+        svg += `
+          <circle
+            class="${s.cls}"
+            cx="${cx}" cy="${cy}" r="${r}"
+            fill="none"
+            stroke-width="${sw}"
+            stroke-linecap="round"
+            stroke-dasharray="${len} ${C - len}"
+            stroke-dashoffset="${-offset}"
+          />
+        `;
+        offset += len;
+      }
+    }
+
+    svg += `</svg>`;
+
+    const center = donutHost.querySelector(".blw-donutCenter");
+    donutHost.innerHTML = svg + (center ? center.outerHTML : "");
+
+    function pct(n) {
+      if (!total) return "0%";
+      return Math.round((n / total) * 100) + "%";
+    }
+
+    legendHost.innerHTML = STATUS_ORDER.map(s => {
+      const n = summary.counts?.[s.key] || 0;
+      const dotCls =
+        s.key === "awaiting_parts" ? "dot-awaiting_parts" :
+        s.key === "on_order" ? "dot-on_order" :
+        s.key === "scheduled" ? "dot-scheduled" :
+        s.key === "complete" ? "dot-complete" :
+        "dot-unassigned";
+
+      return `
+        <div class="blw-legendRow">
+          <div class="blw-dot ${dotCls}"></div>
+          <div>${esc(s.label)}</div>
+          <div style="opacity:.9; font-weight:900;">${esc(pct(n))}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
   async function fetchBacklog(limit) {
     const cfg = getConfig();
     if (!cfg.webAppUrl || !cfg.token) throw new Error("Backlog config missing.");
@@ -181,7 +282,7 @@
     return jsonp(url);
   }
 
-  function render(slot, items, columns, statusMap) {
+  function renderList(slot, items, columns, statusMap) {
     if (!items.length) {
       slot.innerHTML = `<div class="backlogMsg">No backlog items.</div>`;
       return;
@@ -225,32 +326,66 @@
       slot.dataset.backlogInited = "1";
 
       const limit = opts?.limit || 50;
+      const refreshBtn = document.getElementById("backlogRefreshBtn");
 
-      try {
-        const res = await fetchBacklog(limit);
-        if (!res || res.ok !== true) throw new Error(res?.error || "Bad backlog response");
+      // Expand/collapse handler (event delegation). Attach once.
+      slot.addEventListener("click", (e) => {
+        const btn = e.target.closest(".backlogToggle");
+        if (!btn) return;
 
-        const items = Array.isArray(res.items) ? res.items : [];
-        const columns = Array.isArray(res.columns) ? res.columns : null;
+        const row = btn.closest(".backlogRow");
+        if (!row) return;
 
-        const statusMap = safeLoad(STATUS_KEY);
-        render(slot, items, columns, statusMap);
+        const isExpanded = row.classList.toggle("is-expanded");
+        btn.textContent = isExpanded ? "-" : "+";
+        btn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+      });
 
-        slot.addEventListener("click", (e) => {
-          const btn = e.target.closest(".backlogToggle");
-          if (!btn) return;
-
-          const row = btn.closest(".backlogRow");
-          if (!row) return;
-
-          const isExpanded = row.classList.toggle("is-expanded");
-          btn.textContent = isExpanded ? "-" : "+";
-          btn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
-        });
-      } catch (err) {
-        console.error("[BacklogWidget] load failed:", err);
-        slot.innerHTML = `<div class="backlogMsg">Backlog unavailable.</div>`;
+      function setBusy(isBusy) {
+        if (!refreshBtn) return;
+        refreshBtn.disabled = !!isBusy;
+        refreshBtn.textContent = isBusy ? "Loading…" : "Refresh";
       }
+
+      async function loadAndRender() {
+        setBusy(true);
+
+        // lightweight placeholders so it feels responsive
+        if (slot.childElementCount === 0 || slot.textContent.includes("Loading")) {
+          slot.innerHTML = `<div class="backlogMsg">Loading backlog…</div>`;
+        }
+
+        const legendHost = document.getElementById("blwLegend");
+        if (legendHost) legendHost.innerHTML = `<div class="blw-legendSub">Loading…</div>`;
+
+        try {
+          const res = await fetchBacklog(limit);
+          if (!res || res.ok !== true) throw new Error(res?.error || "Bad backlog response");
+
+          const items = Array.isArray(res.items) ? res.items : [];
+          const columns = Array.isArray(res.columns) ? res.columns : null;
+
+          const statusMap = safeLoad(STATUS_KEY);
+          renderList(slot, items, columns, statusMap);
+          renderIndicator(calcSummary(items, statusMap));
+        } catch (err) {
+          console.error("[BacklogWidget] load failed:", err);
+          slot.innerHTML = `<div class="backlogMsg">Backlog unavailable.</div>`;
+
+          const legendHost2 = document.getElementById("blwLegend");
+          if (legendHost2) legendHost2.innerHTML = `<div class="blw-legendSub">Unavailable</div>`;
+
+          renderIndicator({ total: 0, counts: { awaiting_parts: 0, on_order: 0, scheduled: 0, complete: 0, "": 0 } });
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      if (refreshBtn) {
+        refreshBtn.addEventListener("click", () => { loadAndRender(); });
+      }
+
+      await loadAndRender();
     }
   };
 })();
