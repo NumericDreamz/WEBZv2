@@ -1,6 +1,13 @@
+/* ===========================
+   ATS Dashboard - styles.css
+   Drop-in replacement (cleaned + consolidated)
+   =========================== */
+
+/* Reset-ish */
 * { box-sizing: border-box; }
 
 :root{
+  /* Colors */
   --bg: #000;
   --panel: #1a1a1a;
   --panel2: #111;
@@ -21,9 +28,17 @@
   --goodBorder: #1f5a2a;
   --goodText: #b8ffcc;
   --goodDot: #22c55e;
-  
-  --rowGap: 12px;
+
+  /* Spacing knobs (single source of truth) */
+  --head-gap: 10px;    /* title area -> next element */
+  --meta-gap: 10px;    /* date pill / progress bar -> first row */
+  --rowGap: 12px;      /* spacing between rows */
+  --row-gap: 12px;     /* compatibility alias */
 }
+
+/* ===========================
+   Base
+   =========================== */
 
 body{
   font-family: Arial, sans-serif;
@@ -38,33 +53,28 @@ body{
   margin: 0 auto 20px;
 }
 
-/* ========================================================= */
-/* ================= Global Spacing Knobs ================== */
-/* ========================================================= */
-
-:root{
-  --head-gap: 10px;   /* title area -> next element (date pill / progress bar) */
-  --meta-gap: 10px;   /* date pill / progress bar -> first row */
-  --row-gap: 5px;    /* spacing BETWEEN rows (monthly/daily/weekly) */
-}
-
-/* ========================================================= */
-/* ==================== 3-column layout ==================== */
-/* ========================================================= */
+/* ===========================
+   3-column layout (desktop)
+   Uses grid-areas so stacking is predictable.
+   =========================== */
 
 .page-layout{
   max-width: 1600px;
   margin: 0 auto;
   padding: 10px;
+
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr) 280px;
+  grid-template-areas: "left center right";
   gap: 12px;
   align-items: start;
 }
 
-.side-col{
-  width: 100%;
-}
+.page-layout > aside.side-col:first-of-type{ grid-area: left; }
+.page-layout > main.center-col{ grid-area: center; }
+.page-layout > aside.side-col:last-of-type{ grid-area: right; }
+
+.side-col{ width: 100%; }
 
 .center-col{
   min-width: 0;
@@ -72,14 +82,15 @@ body{
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden; /* keeps the center content from painting over side widgets */
+  overflow: hidden;
 }
 
-.widget-spacer{
-  height: 12px;
-}
+.widget-spacer{ height: 12px; }
 
-/* ===== Links grid ===== */
+/* ===========================
+   Links grid
+   =========================== */
+
 .grid-container{
   max-width: 100%;
   margin: 0 auto;
@@ -92,15 +103,19 @@ body{
 .grid-item{
   padding: 20px;
   text-align: center;
+
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+
   background-color: var(--panel);
   color: var(--text);
   text-decoration: none;
+
   border: 1px solid var(--border);
   border-radius: 12px;
+
   transition: background-color .12s ease, border-color .12s ease, transform .06s ease;
   min-width: 0;
   line-height: 1.15;
@@ -112,21 +127,22 @@ body{
 }
 .grid-item:active{ transform: translateY(1px); }
 
-.grid-item img{
-  width: 40px;
-  margin-right: 0;
-}
+.grid-item img{ width: 40px; }
 
-/* ===== Widget cards ===== */
-.metrics-card{
+/* ===========================
+   Widget cards (shared)
+   =========================== */
+
+.metrics-card,
+.widget{
   width: 100%;
-  padding: 14px 14px;
+  padding: 14px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--panel);
   color: var(--text);
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  overflow: hidden; /* widget contents must stay inside */
+  overflow: hidden;
 }
 
 .metrics-card h2{
@@ -135,32 +151,68 @@ body{
   letter-spacing: 0.2px;
 }
 
-.metric-row{
+/* Generic headers */
+.widget-head{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px 10px;
+  gap: 10px;
+  margin-bottom: var(--head-gap);
+}
+
+/* Legacy header names used by backlog widget */
+.widgetHeader{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.widgetTitle{
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+/* ===========================
+   Buttons / counters / pills
+   =========================== */
+
+.btn{
+  width: 32px;
+  height: 30px;
   border-radius: 10px;
-  background: var(--panel2);
+  border: 1px solid var(--btnBorder);
+  background: var(--btn);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+.btn:hover{ background: var(--btnHover); }
+.btn:active{ transform: translateY(1px); }
+
+.btn.subtle{
+  width: auto;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.counter{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 12px;
+  background: #0b0b0b;
   border: 1px solid var(--border);
 }
 
-.metric-left .metric-title{
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 2px;
-}
-
-.metric-left .metric-subtitle{
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.metric-right{
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.count{
+  width: 32px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .status-pill{
@@ -199,43 +251,135 @@ body{
 }
 .status-good .status-dot{ background: var(--goodDot); }
 
-.counter{
-  display: inline-flex;
+/* ===========================
+   Metric rows (Monthly style)
+   =========================== */
+
+.metric-row{
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px;
-  border-radius: 12px;
-  background: #0b0b0b;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 10px;
+  border-radius: 10px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  margin: 0;
+}
+
+.metric-left .metric-title{
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.metric-left .metric-subtitle{
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.metric-right{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Monthly counter anchored */
+.metric-row{ position: relative; padding-bottom: 56px; }
+.metric-row.metric-collapsed{ padding-bottom: 12px; }
+
+.metric-top{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.counter.counter-anchored{
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 20px);
+  justify-content: center;
+}
+
+/* Recognition overrides (monthly special) */
+.metric-row.recognition{
+  position: relative;
+  padding-bottom: 12px;
+  display: block;
+}
+.metric-row.recognition.recog-collapsed{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+
+.recog-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.recog-title{
+  font-size: 14px;
+  font-weight: 800;
+}
+.recog-right{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.recog-points{
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--muted);
+}
+
+/* Bars */
+.bar-row{
+  display: grid;
+  grid-template-columns: 44px 1fr 52px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.metrics-card > .bar-row{
+  margin-top: 0;
+  margin-bottom: var(--meta-gap);
+}
+
+.bar-label{ font-size: 12px; color: var(--muted); }
+.bar-pct{ font-size: 12px; color: var(--muted); text-align: right; }
+
+.bar-track{
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
   border: 1px solid var(--border);
 }
 
-.count{
-  width: 32px;
-  text-align: center;
-  font-size: 15px;
-  font-weight: 800;
+.bar-track.points{
+  background: var(--badBg);
+  border-color: var(--badBorder);
+}
+.bar-fill.points{
+  height: 100%;
+  background: var(--goodDot);
+  border-radius: 999px;
 }
 
-.btn{
-  width: 32px;
-  height: 30px;
-  border-radius: 10px;
-  border: 1px solid var(--btnBorder);
-  background: var(--btn);
-  color: var(--text);
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
+.bar-track.month{ background: #1b1b1b; }
+.bar-fill.month{
+  height: 100%;
+  background: rgba(255,255,255,.55);
+  border-radius: 999px;
 }
 
-.btn:hover{ background: var(--btnHover); }
-
-.btn.subtle{
-  width: auto;
-  padding: 8px 10px;
-  font-size: 12px;
-}
-
+/* Footer block */
 .metric-footer{
   margin-top: 12px;
   display: grid;
@@ -259,69 +403,15 @@ body{
   gap: 10px;
   min-width: 0;
 }
-
 .footer-counter-label{
   font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
 }
 
-/* Responsive stacking */
-@media (max-width: 1200px){
-  .page-layout{
-    grid-template-columns: 1fr;
-  }
-  .center-col{
-    border-left: none;
-    border-right: none;
-    padding: 0;
-    overflow: visible;
-  }
-  .metric-footer{
-    grid-template-columns: 1fr;
-    justify-items: start;
-  }
-  .footer-counter{
-    justify-content: flex-start;
-  }
-}
-
-/* Narrow screens: stack columns in normal desktop order (1 -> 2 -> 3) */
-@media (max-width: 1000px){
-  .page-layout{
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "center"
-      "right"
-      "left";
-  }
-
-  .page-layout > main.center-col{ grid-area: center; }
-  .page-layout > aside.side-col:first-of-type{ grid-area: left; }
-  .page-layout > aside.side-col:last-of-type{ grid-area: right; }
-}
-
-/* Touch devices: stack columns in mobile-priority order (2 -> 3 -> 1) */
-@media (max-width: 700px) and (hover: none) and (pointer: coarse){
-  .page-layout{
-    grid-template-areas:
-      "center"
-      "right"
-      "left";
-  }
-}
-
-/* ========================================================= */
-/* ================== Daily toggle widget ================== */
-/* ========================================================= */
-
-.widget-head{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
-}
+/* ===========================
+   Daily/Weekly toggle widget
+   =========================== */
 
 .daily-progress{
   font-size: 12px;
@@ -330,8 +420,8 @@ body{
   border: 1px solid var(--border);
   border-radius: 999px;
   background: #0b0b0b;
-
-  margin-bottom: 10px; /* adds space before first row */
+  margin-top: 0;
+  margin-bottom: var(--meta-gap);
 }
 
 .toggle-row{
@@ -343,11 +433,7 @@ body{
   border-radius: 10px;
   background: var(--panel2);
   border: 1px solid var(--border);
-
-}
-
-.toggle-row:last-child{
-  margin-bottom: 0; /* don’t leave a dumb gap at the bottom */
+  margin: 0;
 }
 
 .toggle-left .toggle-title{
@@ -355,7 +441,6 @@ body{
   font-weight: 700;
   margin-bottom: 2px;
 }
-
 .toggle-left .toggle-sub{
   font-size: 12px;
   color: var(--muted);
@@ -366,6 +451,19 @@ body{
   box-shadow: inset 0 0 0 1px rgba(34, 197, 94, .15);
 }
 
+/* Completed styling (daily complete should look like normal tiles) */
+.toggle-row.toggle-complete{
+  padding-top: 5px;
+  padding-bottom: 5px;
+  border-color: var(--border) !important;
+  box-shadow: none !important;
+}
+.toggle-row.toggle-complete .toggle-right{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 /* Switch */
 .switch{
   position: relative;
@@ -373,13 +471,11 @@ body{
   width: 52px;
   height: 30px;
 }
-
 .switch input{
   opacity: 0;
   width: 0;
   height: 0;
 }
-
 .slider{
   position: absolute;
   cursor: pointer;
@@ -389,7 +485,6 @@ body{
   transition: .15s;
   border-radius: 999px;
 }
-
 .slider:before{
   position: absolute;
   content: "";
@@ -401,154 +496,74 @@ body{
   transition: .15s;
   border-radius: 50%;
 }
-
 .switch input:checked + .slider{
   background: var(--goodBg);
   border-color: var(--goodBorder);
 }
-
 .switch input:checked + .slider:before{
   transform: translateX(22px);
   background: #d9ffe6;
 }
 
-/* ========================================================= */
-/* =================== Global Row Spacing ================== */
-/* ========================================================= */
-
-/* 1) Title block spacing */
-.widget-head{
-  margin-bottom: var(--head-gap);
-}
-
-/* 2) If a progress bar (Monthly) is directly under the title */
-.metrics-card > .bar-row{
-  margin-top: 0;
-  margin-bottom: var(--meta-gap);
-}
-
-/* 3) If the Daily date pill is directly under the title */
-.metrics-card > .daily-progress{
-  margin-top: 0;
-  margin-bottom: var(--meta-gap);
-}
-
-/* 4) Kill per-row bottom margins so the global system is the ONLY system */
-.toggle-row{ margin-bottom: 0; }   /* <- this is the line that fixes Daily */
-.metric-row{ margin-bottom: 0; }   /* keeps Monthly consistent too */
-
-/* 5) Global “stack” spacing between rows */
-.metrics-card .toggle-row + .toggle-row,
-.metrics-card .metric-row + .metric-row{
-  margin-top: var(--row-gap);
-}
-
-/* ========================================================= */
-/* ================ Daily: Completed toggles ================ */
-/* ========================================================= */
-
-.toggle-row.toggle-complete{
-  padding-top: 5px;
-  padding-bottom: 5px;
-
-  /* kill the green “toggle-done” border/shadow so it matches Monthly tiles */
-  border-color: var(--border) !important;
-  box-shadow: none !important;
-}
-
-.toggle-row.toggle-complete .toggle-right{
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-
-/* ========================================================= */
-/* ===== Weekly styling (reuses the Daily toggle look) ===== */
-/* ========================================================= */
-
+/* Weekly warnings/overdue */
 .weekly-row.weekly-warn{
   background: var(--panel2);
   border-color: var(--badBorder);
   box-shadow: inset 0 0 0 1px rgba(255, 59, 59, .12);
 }
-
 .weekly-row.weekly-warn .slider{
   background: #1b0b0b;
   border-color: var(--badBorder);
 }
+.weekly-row.weekly-warn .slider:before{ background: #ffb4b4; }
 
-.weekly-row.weekly-warn .slider:before{
-  background: #ffb4b4;
-}
-
-/* Completed: green */
 .weekly-row.weekly-good{
   background: var(--goodBg);
   border-color: var(--goodBorder);
 }
 
-/* Past due (Saturday 00:00 and beyond): angry as fuck */
 .weekly-row.weekly-overdue{
   border-color: #ff3b3b;
   box-shadow: 0 0 0 2px rgba(255, 59, 59, .28) inset, 0 0 18px rgba(255, 0, 0, .18);
   animation: weeklyRage 0.65s infinite;
 }
-
 .weekly-row.weekly-overdue .slider{
   background: #5a0000;
   border-color: #ff3b3b;
 }
-
-.weekly-row.weekly-overdue .slider:before{
-  background: #ffd1d1;
-}
+.weekly-row.weekly-overdue .slider:before{ background: #ffd1d1; }
 
 @keyframes weeklyRage{
   0%, 100% { background: #2a0b0b; }
   50%      { background: #7a0000; }
 }
 
-/* ========================================================= */
-/* ================= Weekly: Standardization =============== */
-/* ========================================================= */
+/* Weekly complete pill behavior */
+.widget-sub{ margin: 0 0 10px 0; }
 
-/* Put the pill under the title with sane spacing */
-.widget-sub{
-  margin: 0 0 10px 0;
+.toggle-pill{ display: none; }
+.toggle-row.is-complete .switch{ display: none; }
+.toggle-row.is-complete .toggle-pill{ display: inline-flex; }
+
+/* Unified row spacing inside cards */
+.metrics-card .toggle-row + .toggle-row,
+.metrics-card .metric-row + .metric-row,
+.metrics-card .metric-row + .toggle-row,
+.metrics-card .toggle-row + .metric-row{
+  margin-top: var(--rowGap);
 }
 
-/* Collapse behavior: swap switch -> Complete pill */
-.toggle-pill{
-  display: none;
-}
+/* ===========================
+   Yearly tech roster
+   =========================== */
 
-.toggle-row.is-complete .switch{
-  display: none;
-}
-
-.toggle-row.is-complete .toggle-pill{
-  display: inline-flex;
-}
-
-/* Optional: keep weekly rows using the normal tile styling when not overdue.
-   (weekly-warn/weekly-good can stay in the file, we just won’t use them anymore.) */
-
-
-/* ========================================================= */
-/* =================== Yearly tech roster ================== */
-/* ========================================================= */
-
-.yearly-task{
-  margin-bottom: 10px;
-}
+.yearly-task{ margin-bottom: 10px; }
 
 .yearly-title{
   font-size: 14px;
   font-weight: 800;
   margin-bottom: 2px;
 }
-
 .yearly-sub{
   font-size: 12px;
   color: var(--muted);
@@ -569,7 +584,7 @@ body{
 
 .tech-btn{
   width: 100%;
-  padding: 10px 10px;
+  padding: 10px;
   border-radius: 10px;
   border: 1px solid var(--badBorder);
   background: var(--panel2);
@@ -582,7 +597,6 @@ body{
   text-overflow: ellipsis;
   transition: transform .06s ease, background-color .12s ease, border-color .12s ease;
 }
-
 .tech-btn:active{ transform: translateY(1px); }
 
 .tech-btn.tech-done{
@@ -591,19 +605,12 @@ body{
   color: var(--goodText);
 }
 
-/* ========================================================= */
-/* ========= Yearly tech entries with delete button ======== */
-/* ========================================================= */
-
 .tech-item{
   display: flex;
   align-items: stretch;
   gap: 8px;
 }
-
-.tech-item .tech-btn{
-  flex: 1;
-}
+.tech-item .tech-btn{ flex: 1; }
 
 .tech-del{
   width: 34px;
@@ -618,18 +625,8 @@ body{
   font-weight: 900;
   line-height: 1;
 }
-
-.tech-del:hover{
-  background: #2a0b0b;
-}
-
-.tech-del:active{
-  transform: translateY(1px);
-}
-
-/* ========================================================= */
-/* =========== Stack multiple yearly tasks nicely ========== */
-/* ========================================================= */
+.tech-del:hover{ background: #2a0b0b; }
+.tech-del:active{ transform: translateY(1px); }
 
 .yearly-stack{
   display: grid;
@@ -637,49 +634,12 @@ body{
   margin-top: 10px;
 }
 
-/* =============================================================== */
-/* Monthly: anchor +/- counter to bottom-center of the metric tile */
-/* =============================================================== */
+/* ===========================
+   Favorites dropdown
+   =========================== */
 
-.metric-row{
-  position: relative;
-  padding-bottom: 56px; /* reserves space for the anchored counter */
-}
+.favorites-grid{ margin-bottom: 10px; }
 
-.metric-top{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-/* Counter sits bottom-center, always */
-.counter.counter-anchored{
-  position: absolute;
-  left: 50%;
-  bottom: 10px;
-  transform: translateX(-50%);
-  max-width: calc(100% - 20px);
-  justify-content: center;
-}
-
-/* ========================================================= */
-/* ============ Monthly: Collapsed metric rows ============= */
-/* ========================================================= */
-
-.metric-row.metric-collapsed{
-  padding-bottom: 12px;  /* overrides the anchored-counter padding */
-}
-
-/* ========================================================= */
-/* ======= Favorites always use the same grid rules ======== */
-/* ========================================================= */
-
-.favorites-grid{
-  margin-bottom: 10px;
-}
-
-/* Dropdown container */
 .more-links{
   margin: 0 10px 10px;
   border: 1px solid var(--border);
@@ -698,36 +658,19 @@ body{
   align-items: center;
   justify-content: space-between;
 }
+.more-links summary:hover{ background: #161616; }
+.more-links summary::-webkit-details-marker{ display: none; }
 
-.more-links summary:hover{
-  background: #161616;
-}
+.more-links summary::after{ content: "▾"; opacity: .8; }
+.more-links[open] summary::after{ content: "▴"; }
 
-.more-links summary::-webkit-details-marker{
-  display: none;
-}
+.more-links .grid-container{ padding-top: 0; }
 
-.more-links summary::after{
-  content: "▾";
-  opacity: .8;
-}
+/* ===========================
+   Recent Tasks
+   =========================== */
 
-.more-links[open] summary::after{
-  content: "▴";
-}
-
-/* Keep spacing clean inside the dropdown */
-.more-links .grid-container{
-  padding-top: 0;
-}
-
-/* ========================================================= */
-/* ===================== Recent Tasks ====================== */
-/* ========================================================= */
-
-.recent-tasks{
-  margin: 10px;
-}
+.recent-tasks{ margin: 10px; }
 
 .recent-header{
   display: flex;
@@ -735,9 +678,12 @@ body{
   justify-content: space-between;
   gap: 10px;
 }
+.recent-header h2{ margin: 0; }
 
-.recent-header h2{
-  margin: 0;
+.rt-head-right{
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .recent-list{
@@ -745,14 +691,19 @@ body{
   padding: 0;
   margin: 12px 0 0 0;
   display: grid;
-  gap: 8px;
+  gap: 10px;
+}
+
+.recent-item,
+.recent-list .toggle-row{
+  margin: 0;
 }
 
 .recent-item{
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 10px;
+  padding: 10px;
   border-radius: 12px;
   background: var(--panel2);
   border: 1px solid var(--border);
@@ -768,7 +719,6 @@ body{
   cursor: pointer;
   font-weight: 900;
 }
-
 .recent-done:hover{ filter: brightness(1.1); }
 
 .recent-text{
@@ -777,20 +727,29 @@ body{
   word-break: break-word;
 }
 
-/* Modal: hidden by default */
+/* Recent overdue reuses weekly rage */
+.rt-row.rt-overdue{
+  border-color: #ff3b3b;
+  box-shadow: 0 0 0 2px rgba(255, 59, 59, .28) inset, 0 0 18px rgba(255, 0, 0, .18);
+  animation: weeklyRage 0.65s infinite;
+}
+.rt-row.rt-overdue .slider{
+  background: #5a0000;
+  border-color: #ff3b3b;
+}
+.rt-row.rt-overdue .slider:before{ background: #ffd1d1; }
+
+/* Modal (Recent/Tier1) */
 .rt-modal-backdrop{
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,.65);
   z-index: 9999;
-  display: none;              /* <-- key */
+  display: none;
   align-items: center;
   justify-content: center;
 }
-
-.rt-modal-backdrop.rt-open{
-  display: flex;              /* <-- only show when open */
-}
+.rt-modal-backdrop.rt-open{ display: flex; }
 
 .rt-modal{
   width: min(520px, calc(100vw - 28px));
@@ -823,7 +782,6 @@ body{
   padding: 10px 12px;
   outline: none;
 }
-
 .rt-input:focus{ border-color: #555; }
 
 .rt-modal-actions{
@@ -833,214 +791,23 @@ body{
   margin-top: 12px;
 }
 
-/* ========================================================= */
-/* ===================== Recent Tasks ====================== */
-/* ========================================================= */
-
-/* Header right side: pill + add button */
-.rt-head-right{
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Recent list spacing matches other widgets */
-.recent-list{
-  margin-top: 12px;
-  display: grid;
-  gap: 10px; /* <- tweak this if you want tighter/looser */
-}
-
-/* We're using toggle-row, so kill its built-in margin-bottom inside this list */
-.recent-list .toggle-row{
-  margin-bottom: 0;
-}
-
-/* Right side alignment */
-.rt-right{
-  display: flex;
-  align-items: center;
-}
-
-/* Overdue (after midnight) = angry flashing */
-.rt-row.rt-overdue{
-  border-color: #ff3b3b;
-  box-shadow: 0 0 0 2px rgba(255, 59, 59, .28) inset, 0 0 18px rgba(255, 0, 0, .18);
-  animation: weeklyRage 0.65s infinite;
-}
-
-.rt-row.rt-overdue .slider{
-  background: #5a0000;
-  border-color: #ff3b3b;
-}
-
-.rt-row.rt-overdue .slider:before{
-  background: #ffd1d1;
-}
-
-/* ========================================================= */
-/* ================= Recent Tasks: Overdue ================= */
-/* ========================================================= */
-
-.rt-row.rt-overdue{
-  border-color: #ff3b3b;
-  box-shadow: 0 0 0 2px rgba(255, 59, 59, .28) inset, 0 0 18px rgba(255, 0, 0, .18);
-  animation: weeklyRage 0.65s infinite; /* reuses your existing keyframes */
-}
-
-.rt-row.rt-overdue .slider{
-  background: #5a0000;
-  border-color: #ff3b3b;
-}
-
-.rt-row.rt-overdue .slider:before{
-  background: #ffd1d1;
-}
-
-/* ================================================================== */
-/* Weekly Payroll: overdue should flash just like weekly overdue rows */
-/* ================================================================== */
-
-.payroll-row.payroll-overdue {
+/* Payroll overdue */
+.payroll-row.payroll-overdue{
   border-color: #ff3b3b;
   box-shadow: 0 0 0 2px rgba(255, 59, 59, .28) inset,
               0 0 18px rgba(255, 0, 0, .18);
   animation: weeklyRage 0.65s infinite;
 }
-
-.payroll-row.payroll-overdue .slider {
+.payroll-row.payroll-overdue .slider{
   background: #5a0000;
   border-color: #ff3b3b;
 }
+.payroll-row.payroll-overdue .slider:before{ background: #ffd1d1; }
 
-.payroll-row.payroll-overdue .slider:before {
-  background: #ffd1d1;
-}
+/* ===========================
+   Center: Recent + Tier 1 layout
+   =========================== */
 
-
-/* ========================================================= */
-/* ================= Monthly: Recognition ================== */
-/* ========================================================= */
-
-/* Expanded (normal) */
-.metric-row.recognition{
-  position: relative;
-  padding-bottom: 12px;   /* override the anchored-counter spacing */
-  display: block;         /* recognition uses its own layout */
-}
-
-/* Collapsed (completed) */
-.metric-row.recognition.recog-collapsed{
-  display: flex;          /* go back to the standard row look */
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 12px;
-}
-
-/* Expanded header */
-.recog-head{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.recog-title{
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.recog-right{
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.recog-points{
-  font-size: 13px;
-  font-weight: 900;
-  color: var(--muted);
-}
-
-/* Bar pieces (used for Recognition total + the top-of-widget month bar) */
-.bar-row{
-  display: grid;
-  grid-template-columns: 44px 1fr 52px;
-  align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.bar-label{
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.bar-pct{
-  font-size: 12px;
-  color: var(--muted);
-  text-align: right;
-}
-
-.bar-track{
-  height: 12px;
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-
-.bar-track.points{
-  background: var(--badBg);           /* “unspent” looks red-ish */
-  border-color: var(--badBorder);
-}
-
-.bar-fill.points{
-  height: 100%;
-  background: var(--goodDot);         /* “spent” looks green */
-  border-radius: 999px;
-}
-
-.bar-track.month{
-  background: #1b1b1b;
-}
-
-.bar-fill.month{
-  height: 100%;
-  background: rgba(255,255,255,.55);
-  border-radius: 999px;
-}
-
-/* ========================================================= */
-/* ============== Widget header sub-bar spacing ============= */
-/* ========================================================= */
-
-.metrics-card > .bar-row{
-  margin-top: 0;        /* removes the big title-to-bar gap */
-  margin-bottom: 10px;  /* adds space between bar and first row */
-}
-
-/* ========================================================= */
-/* ============ Unified Row Spacing (All Widgets) =========== */
-/* ========================================================= */
-
-.metrics-card .metric-row,
-.metrics-card .toggle-row{
-  margin: 0; /* stop random margin stacking */
-}
-
-.metrics-card .metric-row + .metric-row,
-.metrics-card .toggle-row + .toggle-row,
-.metrics-card .metric-row + .toggle-row,
-.metrics-card .toggle-row + .metric-row{
-  margin-top: var(--rowGap, 12px);
-}
-
-
-/* ========================================================= */
-/* ============ Center: Recent + Tier 1 layout ============= */
-/* ========================================================= */
 .center-widgets-row{
   display: flex;
   flex-wrap: wrap;
@@ -1048,77 +815,41 @@ body{
   margin-top: 14px;
   align-items: flex-start;
   width: 100%;
-  box-sizing: border-box;
 }
 .center-widget-slot{
   flex: 1 1 320px;
   min-width: 260px;
 }
 
+/* ===========================
+   Environment / Dataset marker
+   =========================== */
 
-
-.backlogRow{
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 12px;
-  padding: 10px 10px;
-  border-radius: 12px;
-  background: var(--panel2);
-  border: 1px solid var(--border);
+.ats-env-marker{
+  text-align: center;
+  margin-top: 6px;
+  margin-bottom: 2px;
+  user-select: none;
+}
+.ats-env-marker__line{
+  height: 1px;
+  width: 140px;
+  margin: 0 auto;
+  background: currentColor;
+  opacity: 0.35;
+}
+.ats-env-marker__label{
+  font-weight: 800;
+  letter-spacing: 4px;
+  font-size: 12px;
+  opacity: 0.9;
+  text-transform: uppercase;
+  margin: 3px 0;
 }
 
-.backlogRow:hover{
-  border-color: #444;
-  background: #161616;
-}
-
-.backlogTask{
-  font-weight: 900;
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.backlogDesc{
-  font-size: 13px;
-  color: var(--muted);
-  word-break: break-word;
-}
-
-.backlogMsg{
-  padding: 6px 2px;
-  color: var(--muted);
-}
-
-/* ========================================================= */
-/* ======================= Backlog ========================= */
-/* ========================================================= */
-
-.widget{
-  margin: 0 10px 10px;
-  padding: 14px 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--panel);
-  color: var(--text);
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  overflow: hidden;
-}
-
-.widgetHeader{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.widgetTitle{
-  font-size: 16px;
-  font-weight: 900;
-  letter-spacing: 0.2px;
-}
+/* ===========================
+   Backlog
+   =========================== */
 
 .backlogList{
   display: grid;
@@ -1131,18 +862,18 @@ body{
   border: 1px solid var(--border);
   overflow: hidden;
 }
+.backlogRow:hover{
+  border-color: #444;
+  background: #161616;
+}
 
-/* Top line: Task + Description + toggle */
+/* Top line: Task | Desc | Status | Toggle */
 .backlogRowTop{
   display: grid;
-  grid-template-columns: 90px 1fr 38px;
+  grid-template-columns: 90px minmax(0, 1fr) auto 38px;
   gap: 12px;
   padding: 5px 10px;
   align-items: center;
-}
-
-.backlogRow:hover{
-  border-color: #444;
 }
 
 .backlogTask{
@@ -1151,18 +882,57 @@ body{
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .backlogDesc{
   font-size: 13px;
   color: var(--muted);
-  word-break: break-word;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.backlogStatusSlot{
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-width: 0;
+}
+
+.backlogStatusPill{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* Status colors */
+.backlogStatusPill.backlogStatus-awaiting_parts{
+  background: var(--badBg);
+  color: var(--badText);
+  border-color: var(--badBorder);
+}
+.backlogStatusPill.backlogStatus-on_order{
+  background: #2a2400;
+  color: #ffe8a3;
+  border-color: #8a6a00;
+}
+.backlogStatusPill.backlogStatus-scheduled{
+  background: var(--goodBg);
+  color: var(--goodText);
+  border-color: var(--goodBorder);
 }
 
 .backlogToggle{
   width: 28px;
   height: 28px;
-  font-size: 18px;
   border-radius: 10px;
   border: 1px solid var(--btnBorder);
   background: var(--btn);
@@ -1171,25 +941,24 @@ body{
   font-size: 20px;
   font-weight: 900;
   line-height: 1;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
 
+  justify-self: end;
+}
 .backlogToggle:hover{ background: var(--btnHover); }
 .backlogToggle:active{ transform: translateY(1px); }
 
 /* Expanded details area */
 .backlogDetails{
   display: none;
-  padding: 10px 10px 12px 10px;
+  padding: 10px 10px 12px;
   border-top: 1px solid var(--border);
   background: #0b0b0b;
 }
-
-.backlogRow.is-expanded .backlogDetails{
-  display: block;
-}
+.backlogRow.is-expanded .backlogDetails{ display: block; }
 
 .backlogCard{
   background: var(--panel);
@@ -1221,164 +990,72 @@ body{
   color: var(--text);
   word-break: break-word;
 }
-
-.backlogValue.is-empty{
-  color: rgba(255,255,255,.45);
-}
+.backlogValue.is-empty{ color: rgba(255,255,255,.45); }
 
 .backlogMsg{
   padding: 6px 2px;
   color: var(--muted);
 }
 
-/* ===== Backlog layout hard overrides (fixes narrow desc + button drift) ===== */
-
-.backlogRow{
-  display: block !important;   /* kills old "display:grid" versions */
-}
-
-.backlogRowTop{
-  display: grid !important;
-  grid-template-columns: 90px minmax(0, 1fr) 38px !important;
-  gap: 12px;
-  padding: 5px 10px;
-  align-items: center;
-}
-
-.backlogTask,
-.backlogDesc{
-  min-width: 0;               /* allows proper shrinking without 1-char wrapping */
-}
-
-.backlogDesc{
-  white-space: normal;
-  overflow-wrap: anywhere;    /* wrap like a normal adult */
-  word-break: normal;
-}
-
-/* ===== Backlog: force toggle to stay on the right ===== */
-
-.backlogRowTop{
-  display: grid !important;
-  grid-template-columns: 90px minmax(0, 1fr) auto 38px !important;
-  align-items: center !important;
-  gap: 12px !important;
-}
-
-.backlogTask,
-.backlogDesc,
-.backlogStatusSlot{
-  min-width: 0; /* prevents insane wrapping */
-}
-
-.backlogToggle{
-  justify-self: end !important;
-  align-self: center !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-
-.backlogToggle{
-  justify-self: end;          /* hard-pin to the right edge */
-}
-/* ===== Backlog Status Pills (hard override) ===== */
-
-.backlogStatusSlot{
-  display: flex !important;
-  justify-content: flex-end !important;
-  align-items: center !important;
-  min-width: 0 !important;
-}
-
-.backlogStatusPill{
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 4px 8px !important;
-  border-radius: 999px !important;
-  font-size: 11px !important;
-  font-weight: 900 !important;
-  line-height: 1 !important;
-  border: 1px solid transparent !important;
-  white-space: nowrap !important;
-}
-
-/* Red */
-.backlogStatusPill.backlogStatus-awaiting_parts{
-  background: var(--badBg) !important;
-  color: var(--badText) !important;
-  border-color: var(--badBorder) !important;
-}
-
-/* Yellow */
-.backlogStatusPill.backlogStatus-on_order{
-  background: #2a2400 !important;
-  color: #ffe8a3 !important;
-  border-color: #8a6a00 !important;
-}
-
-/* Green */
-.backlogStatusPill.backlogStatus-scheduled{
-  background: var(--goodBg) !important;
-  color: var(--goodText) !important;
-  border-color: var(--goodBorder) !important;
-}
-/* ===== Backlog: COMPLETE highlight (hard override) ===== */
-
+/* COMPLETE highlight */
 .backlogRow.status-complete{
-  border-color: var(--goodBorder) !important;
-  background: rgba(11, 42, 18, 0.40) !important; /* green wash */
+  border-color: var(--goodBorder);
+  background: rgba(11, 42, 18, 0.40);
 }
-
 .backlogRow.status-complete .backlogRowTop{
-  background: rgba(11, 42, 18, 0.25) !important;
+  background: rgba(11, 42, 18, 0.25);
+}
+.backlogRow.status-complete .backlogTask{ color: var(--goodText); }
+.backlogRow.status-complete .backlogDesc{ color: rgba(184, 255, 204, 0.85); }
+
+/* ===========================
+   Responsive behavior
+   =========================== */
+
+/* <=1200px: stack columns (normal order: 1 -> 2 -> 3) */
+@media (max-width: 1200px){
+  .page-layout{
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "left"
+      "center"
+      "right";
+  }
+
+  .center-col{
+    border-left: none;
+    border-right: none;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .metric-footer{
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+  .footer-counter{ justify-content: flex-start; }
 }
 
-.backlogRow.status-complete .backlogTask{
-  color: var(--goodText) !important;
-}
+/* <=1000px: narrow screens behave like mobile (2 -> 3 -> 1) */
+@media (max-width: 1000px){
+  .page-layout{
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "center"
+      "right"
+      "left";
+  }
 
-.backlogRow.status-complete .backlogDesc{
-  color: rgba(184, 255, 204, 0.85) !important;
-}
-
-
-/* ===== Environment / Dataset marker ===== */
-.ats-env-marker{
-  text-align: center;
-  margin-top: 6px;
-  margin-bottom: 2px;
-  user-select: none;
-}
-.ats-env-marker__line{
-  height: 1px;
-  width: 140px;
-  margin: 0 auto;
-  background: currentColor;
-  opacity: 0.35;
-}
-.ats-env-marker__label{
-  font-weight: 800;
-  letter-spacing: 4px;
-  font-size: 12px;
-  opacity: 0.9;
-  text-transform: uppercase;
-  margin: 3px 0;
-}
-
-/* ===== Backlog: mobile 3-line layout (Task / Description / Status+Toggle) ===== */
-@media (max-width: 520px){
+  /* Backlog: 3-line row layout (Task / Description / Status+Toggle) */
   .backlogRowTop{
-    grid-template-columns: 1fr auto !important;
+    grid-template-columns: 1fr auto;
     grid-template-areas:
       "task task"
       "desc desc"
-      "status toggle" !important;
-    row-gap: 6px !important;
-    column-gap: 10px !important;
-    align-items: start !important;
+      "status toggle";
+    row-gap: 6px;
+    column-gap: 10px;
+    align-items: start;
   }
 
   .backlogTask{ grid-area: task; }
@@ -1386,11 +1063,25 @@ body{
 
   .backlogStatusSlot{
     grid-area: status;
-    justify-content: flex-start !important;
+    justify-content: flex-start;
   }
 
   .backlogToggle{
     grid-area: toggle;
-    justify-self: end !important;
+    justify-self: end;
   }
+}
+
+/* <=600px: true mobile tightening */
+@media (max-width: 600px){
+  .page-layout{ padding: 8px; gap: 10px; }
+
+  .grid-item{ padding: 16px; }
+  .metrics-card, .widget{ padding: 12px; }
+
+  .backlogRowTop{ padding: 6px 10px; }
+  .backlogTask{ font-size: 13px; }
+  .backlogDesc{ font-size: 13px; }
+
+  .backlogStatusPill{ font-size: 11px; padding: 4px 8px; }
 }
