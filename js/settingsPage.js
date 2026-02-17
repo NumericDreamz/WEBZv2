@@ -57,6 +57,136 @@
     };
   }
 
+
+function hasClipboard() {
+  return !!(navigator.clipboard && navigator.clipboard.writeText);
+}
+
+function mediaYesNo(q) {
+  try { return window.matchMedia(q).matches ? "YES" : "no"; } catch (_) { return "n/a"; }
+}
+
+function orientationText() {
+  try {
+    const o = screen.orientation;
+    if (o && o.type) return o.type + (typeof o.angle === "number" ? ` (${o.angle}°)` : "");
+  } catch (_) {}
+  // Fallback
+  try {
+    return window.matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
+  } catch (_) {
+    return "unknown";
+  }
+}
+
+function buildDisplayMetricsText() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  const vv = window.visualViewport;
+  const vvText = vv
+    ? `${Math.round(vv.width)} x ${Math.round(vv.height)}  (scale ${Number(vv.scale || 1).toFixed(2)})`
+    : "n/a";
+
+  const dpr = window.devicePixelRatio || 1;
+
+  const sw = (screen && typeof screen.width === "number") ? screen.width : 0;
+  const sh = (screen && typeof screen.height === "number") ? screen.height : 0;
+
+  const aw = (screen && typeof screen.availWidth === "number") ? screen.availWidth : 0;
+  const ah = (screen && typeof screen.availHeight === "number") ? screen.availHeight : 0;
+
+  const physW = sw ? Math.round(sw * dpr) : 0;
+  const physH = sh ? Math.round(sh * dpr) : 0;
+
+  const bps = [2000, 1500, 1200, 1000, 800, 700, 600, 520].map(n => `<=${n}: ${mediaYesNo(`(max-width: ${n}px)`)}`).join("  ");
+
+  const info = [
+    `Viewport:        ${vw} x ${vh}  (CSS px)`,
+    `Visual viewport: ${vvText}`,
+    `Screen:          ${sw} x ${sh}  (CSS px)`,
+    `Screen (avail):  ${aw} x ${ah}  (CSS px)`,
+    `DevicePixelRatio:${dpr}`,
+    `Approx physical: ${physW} x ${physH}  (device px)`,
+    `Orientation:     ${orientationText()}`,
+    `Hover:           ${mediaYesNo("(hover: hover)")}   (none: ${mediaYesNo("(hover: none)")})`,
+    `Pointer:         fine ${mediaYesNo("(pointer: fine)")}   coarse ${mediaYesNo("(pointer: coarse)")}`,
+    `Breakpoints:     ${bps}`,
+    ``,
+    `Tip: Use "Viewport" for CSS breakpoints. Phones report smaller CSS widths than their hardware pixels.`
+  ];
+
+  return info.join("\n");
+}
+
+function initDisplayMetricsPanel() {
+  const dump = $("displayMetrics");
+  if (!dump) return;
+
+  const copyBtn = $("copyMetrics");
+  if (copyBtn) {
+    copyBtn.style.display = hasClipboard() ? "inline-block" : "none";
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(dump.textContent || "");
+        copyBtn.textContent = "Copied";
+        setTimeout(() => { copyBtn.textContent = "Copy Metrics"; }, 900);
+      } catch (_) {
+        // Fallback: select text for manual copy
+        try {
+          const range = document.createRange();
+          range.selectNodeContents(dump);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } catch (_) {}
+      }
+    });
+  }
+
+  let raf = 0;
+  const update = () => {
+    dump.textContent = buildDisplayMetricsText();
+  };
+  const schedule = () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      update();
+    });
+  };
+
+  update();
+  window.addEventListener("resize", schedule, { passive: true });
+  window.addEventListener("orientationchange", schedule, { passive: true });
+
+  try {
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", schedule, { passive: true });
+      window.visualViewport.addEventListener("scroll", schedule, { passive: true });
+    }
+  } catch (_) {}
+}
+
+async function clearDeviceCaches() {
+  // Cache Storage (service worker caches)
+  try {
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (_) {}
+
+  // Unregister service workers (so they don't resurrect old caches)
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+  } catch (_) {}
+}
+
+
   function init() {
     const env = getEnv();
 
@@ -81,6 +211,8 @@
 
     applyEnvMarker(cfg.label);
 
+    initDisplayMetricsPanel();
+
     $("applyDataset").addEventListener("click", () => {
       const selected = beta.checked ? "beta" : "stable";
 
@@ -99,25 +231,31 @@
       location.reload();
     });
 
-    $("clearLocal").addEventListener("click", () => {
-      const selected = beta.checked ? "beta" : "stable";
-      const keys = datasetLocalKeys(selected);
+    
+$("clearLocal").addEventListener("click", async () => {
+  const selected = beta.checked ? "beta" : "stable";
+  const keys = datasetLocalKeys(selected);
 
-      const ok = confirm(`Clear local cache for "${selected}" on this device? This does NOT delete the sheet data.`);
-      if (!ok) return;
+  const ok = confirm(`Clear local cache for "${selected}" on this device? This does NOT delete the sheet data.\n\nNote: This also clears the PWA cache so stale CSS/JS stops haunting you.`);
+  if (!ok) return;
 
-      try { localStorage.removeItem(keys.master); } catch (_) {}
-      try { localStorage.removeItem(keys.cache); } catch (_) {}
-      try { localStorage.removeItem(keys.lastSync); } catch (_) {}
+  try { localStorage.removeItem(keys.master); } catch (_) {}
+  try { localStorage.removeItem(keys.cache); } catch (_) {}
+  try { localStorage.removeItem(keys.lastSync); } catch (_) {}
 
-      // Also clear legacy master if we're nuking stable and it exists (older builds)
-      if (selected === "stable") {
-        try { localStorage.removeItem("ats_portal_state_v1"); } catch (_) {}
-        try { localStorage.removeItem("portal_state_cache_v1"); } catch (_) {}
-      }
+  // Also clear legacy master if we're nuking stable and it exists (older builds)
+  if (selected === "stable") {
+    try { localStorage.removeItem("ats_portal_state_v1"); } catch (_) {}
+    try { localStorage.removeItem("portal_state_cache_v1"); } catch (_) {}
+  }
 
-      location.reload();
-    });
+  await clearDeviceCaches();
+
+  // Force a clean reload
+  const url = new URL(location.href);
+  url.searchParams.set("v", Date.now().toString());
+  location.replace(url.toString());
+});
   }
 
   if (document.readyState === "loading") {
