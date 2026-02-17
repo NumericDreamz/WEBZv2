@@ -1171,7 +1171,7 @@ body{
 /* Vertical-monitor / narrow layout:
    - side columns: 2-up (Daily+Weekly, Monthly+Yearly)
    - backlog rows: DO NOT use the 3-line mobile layout */
-@media (max-width: 1100px) and (min-width: 601px){
+@media (max-width: 1200px) and (min-width: 601px){
 
   .page-layout > aside.side-col{
     display: grid;
