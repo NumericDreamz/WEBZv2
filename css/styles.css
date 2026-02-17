@@ -1144,8 +1144,8 @@ body{
    Responsive behavior
    =========================== */
 
-/* <=2000px: stack columns (normal order: 1 -> 2 -> 3) */
-@media (max-width: 2000px){
+/* <=1500px: collapse to 1 column in normal order (1 -> 2 -> 3) */
+@media (max-width: 1500px){
   .page-layout{
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -1168,9 +1168,11 @@ body{
   .footer-counter{ justify-content: flex-start; }
 }
 
+/* Vertical-monitor / narrow layout (your 1080px viewport lives here):
+   - reorder to 2 -> 3 -> 1
+   - side columns go 2-up
+   - backlog stays single-line */
 @media (max-width: 1100px) and (min-width: 601px){
-
-  /* Vertical monitor: reorder page stack to 2 -> 3 -> 1 */
   .page-layout{
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -1189,7 +1191,7 @@ body{
   .page-layout > aside.side-col .widget-spacer{ display: none; }
   .page-layout > aside.side-col > div{ min-width: 0; }
 
-  /* Backlog: force desktop-style row layout on vertical monitor */
+  /* Backlog: force desktop-style row layout here */
   .backlogRowTop{
     grid-template-columns: 90px minmax(0, 1fr) auto 38px !important;
     grid-template-areas: none !important;
@@ -1207,17 +1209,11 @@ body{
   .backlogToggle{ justify-self: end !important; }
 }
 
-/* True mobile: stack side columns, AND enable the 3-line backlog layout */
+/* True mobile only: stack side columns + enable 3-line backlog rows */
 @media (max-width: 600px){
+  .page-layout > aside.side-col{ display: block; }
+  .page-layout > aside.side-col .widget-spacer{ display: block; }
 
-  .page-layout > aside.side-col{
-    display: block;
-  }
-  .page-layout > aside.side-col .widget-spacer{
-    display: block;
-  }
-
-  /* Backlog: 3-line layout only on true mobile */
   .backlogRowTop{
     grid-template-columns: 1fr auto !important;
     grid-template-areas:
