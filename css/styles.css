@@ -1144,8 +1144,8 @@ body{
    Responsive behavior
    =========================== */
 
-/* <=1500px: stack columns (normal order: 1 -> 2 -> 3) */
-@media (max-width: 1500px){
+/* <=2000px: stack columns (normal order: 1 -> 2 -> 3) */
+@media (max-width: 2000px){
   .page-layout{
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -1168,10 +1168,16 @@ body{
   .footer-counter{ justify-content: flex-start; }
 }
 
-/* Vertical-monitor / narrow layout:
-   - side columns: 2-up (Daily+Weekly, Monthly+Yearly)
-   - backlog rows: DO NOT use the 3-line mobile layout */
-@media (max-width: 1499px) and (min-width: 601px){
+@media (max-width: 1100px) and (min-width: 601px){
+
+  /* Vertical monitor: reorder page stack to 2 -> 3 -> 1 */
+  .page-layout{
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "center"
+      "right"
+      "left";
+  }
 
   .page-layout > aside.side-col{
     display: grid;
@@ -1180,13 +1186,8 @@ body{
     align-items: start;
   }
 
-  .page-layout > aside.side-col .widget-spacer{
-    display: none;
-  }
-
-  .page-layout > aside.side-col > div{
-    min-width: 0;
-  }
+  .page-layout > aside.side-col .widget-spacer{ display: none; }
+  .page-layout > aside.side-col > div{ min-width: 0; }
 
   /* Backlog: force desktop-style row layout on vertical monitor */
   .backlogRowTop{
@@ -1200,17 +1201,10 @@ body{
   .backlogTask,
   .backlogDesc,
   .backlogStatusSlot,
-  .backlogToggle{
-    grid-area: auto !important; /* cancels mobile grid-area assignments */
-  }
+  .backlogToggle{ grid-area: auto !important; }
 
-  .backlogStatusSlot{
-    justify-content: flex-end !important;
-  }
-
-  .backlogToggle{
-    justify-self: end !important;
-  }
+  .backlogStatusSlot{ justify-content: flex-end !important; }
+  .backlogToggle{ justify-self: end !important; }
 }
 
 /* True mobile: stack side columns, AND enable the 3-line backlog layout */
