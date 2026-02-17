@@ -1144,8 +1144,8 @@ body{
    Responsive behavior
    =========================== */
 
-/* <=2000px: stack columns (normal order: 1 -> 2 -> 3) */
-@media (max-width: 2000px){
+/* <=1500px: stack columns (normal order: 1 -> 2 -> 3) */
+@media (max-width: 1500px){
   .page-layout{
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -1168,52 +1168,83 @@ body{
   .footer-counter{ justify-content: flex-start; }
 }
 
-/* <=1100px: narrow screens behave like mobile (2 -> 3 -> 1) */
-@media (max-width: 1100px){
-  .page-layout{
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "center"
-      "right"
-      "left";
-  }
+/* Vertical-monitor / narrow layout:
+   - side columns: 2-up (Daily+Weekly, Monthly+Yearly)
+   - backlog rows: DO NOT use the 3-line mobile layout */
+@media (max-width: 1100px) and (min-width: 601px){
 
-  /* Backlog: 3-line row layout (Task / Description / Status+Toggle) */
-  .backlogRowTop{
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "task task"
-      "desc desc"
-      "status toggle";
-    row-gap: 6px;
-    column-gap: 10px;
+  .page-layout > aside.side-col{
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
     align-items: start;
   }
 
-  .backlogTask{ grid-area: task; }
-  .backlogDesc{ grid-area: desc; }
+  .page-layout > aside.side-col .widget-spacer{
+    display: none;
+  }
+
+  .page-layout > aside.side-col > div{
+    min-width: 0;
+  }
+
+  /* Backlog: force desktop-style row layout on vertical monitor */
+  .backlogRowTop{
+    grid-template-columns: 90px minmax(0, 1fr) auto 38px !important;
+    grid-template-areas: none !important;
+    row-gap: 0 !important;
+    column-gap: 12px !important;
+    align-items: center !important;
+  }
+
+  .backlogTask,
+  .backlogDesc,
+  .backlogStatusSlot,
+  .backlogToggle{
+    grid-area: auto !important; /* cancels mobile grid-area assignments */
+  }
 
   .backlogStatusSlot{
-    grid-area: status;
-    justify-content: flex-start;
+    justify-content: flex-end !important;
   }
 
   .backlogToggle{
-    grid-area: toggle;
-    justify-self: end;
+    justify-self: end !important;
   }
 }
 
-/* <=600px: true mobile tightening */
+/* True mobile: stack side columns, AND enable the 3-line backlog layout */
 @media (max-width: 600px){
-  .page-layout{ padding: 8px; gap: 10px; }
 
-  .grid-item{ padding: 16px; }
-  .metrics-card, .widget{ padding: 12px; }
+  .page-layout > aside.side-col{
+    display: block;
+  }
+  .page-layout > aside.side-col .widget-spacer{
+    display: block;
+  }
 
-  .backlogRowTop{ padding: 6px 10px; }
-  .backlogTask{ font-size: 13px; }
-  .backlogDesc{ font-size: 13px; }
+  /* Backlog: 3-line layout only on true mobile */
+  .backlogRowTop{
+    grid-template-columns: 1fr auto !important;
+    grid-template-areas:
+      "task task"
+      "desc desc"
+      "status toggle" !important;
+    row-gap: 6px !important;
+    column-gap: 10px !important;
+    align-items: start !important;
+  }
 
-  .backlogStatusPill{ font-size: 11px; padding: 4px 8px; }
+  .backlogTask{ grid-area: task !important; }
+  .backlogDesc{ grid-area: desc !important; }
+
+  .backlogStatusSlot{
+    grid-area: status !important;
+    justify-content: flex-start !important;
+  }
+
+  .backlogToggle{
+    grid-area: toggle !important;
+    justify-self: end !important;
+  }
 }
