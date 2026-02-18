@@ -10,7 +10,7 @@
 
   
   <link rel="icon" href="favicon.ico" />
-<link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/styles.css?v=20260217_01" />
 
   
   <link rel="stylesheet" href="css/nav.css" />
@@ -27,7 +27,7 @@
   <script src="js/widgets/tier1Briefing.js?v=20260212_02" defer></script>
 
   <!-- Backlog widget loader -->
-  <script src="js/widgets/backlog.js?v=20260213_03" defer></script>
+  <script src="js/widgets/backlog.js?v=20260217_01" defer></script>
 
   <script src="js/app.js?v=20260208_1" defer></script>
 </head>
@@ -88,11 +88,28 @@
       </div>
 
       <!-- ================== BACKLOG WIDGET START ================== -->
-      <section id="backlogWidget" class="widget">
-        <div class="widgetHeader">
-          <div class="widgetTitle">Backlog</div>
+      <section id="backlogWidget" class="widget backlogWidget">
+        <div class="blw-grid">
+          <div class="blw-viz" aria-label="Backlog status summary">
+            <div class="blw-donut" id="blwDonut" aria-hidden="true">
+              <div class="blw-donutCenter">
+                <div class="blw-totalLabel">TOTAL</div>
+                <div class="blw-totalVal" id="blwTotal">0</div>
+              </div>
+            </div>
+            <div class="blw-legend" id="blwLegend">
+              <div class="blw-legendSub">Loading…</div>
+            </div>
+          </div>
+
+          <div class="blw-listPane">
+            <div class="blw-head">
+              <div class="blw-headTitle">Backlog Items</div>
+              <button id="backlogRefreshBtn" class="btn subtle" type="button">Refresh</button>
+            </div>
+            <div id="backlogList" class="backlogList">Loading backlog…</div>
+          </div>
         </div>
-        <div id="backlogList" class="backlogList">Loading backlog…</div>
       </section>
       <!-- ================== BACKLOG WIDGET END ================== -->
 
