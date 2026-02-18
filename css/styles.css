@@ -1203,7 +1203,6 @@ body{
 /* =========================================================
    Backlog widget (index): donut indicator + legend
    (This got nuked when styles.css was replaced for light mode.)
-   Paste at the very bottom so it wins.
    ========================================================= */
 
 .backlogWidget .blw-grid{
