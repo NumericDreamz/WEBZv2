@@ -5,6 +5,45 @@
 (function(){
   const PARTIAL_PATH = './partials/nav.html';
   const DATASET_STORE_KEY = 'ats_portal_dataset_mode_v1';
+  const THEME_STORE_KEY = 'ats_portal_theme_mode_v1';
+
+  // Apply theme early so pages don't look like they were rendered by a haunted VGA cable.
+  function getThemeMode(){
+    const v = (localStorage.getItem(THEME_STORE_KEY) || '').toString().trim().toLowerCase();
+    return (v === 'light' || v === 'dark') ? v : 'dark';
+  }
+
+  function setThemeMode(mode){
+    const m = (mode === 'light') ? 'light' : 'dark';
+    try{ localStorage.setItem(THEME_STORE_KEY, m); }catch(e){}
+
+    // CSS uses :root[data-theme="light"] overrides.
+    try{ document.documentElement.setAttribute('data-theme', m); }catch(e){}
+
+    // Update the browser chrome color if present.
+    try{
+      const color = (m === 'light') ? '#f4f6f8' : '#0b0b0b';
+      let meta = document.querySelector('meta[name="theme-color"]');
+      if(!meta){
+        meta = document.createElement('meta');
+        meta.setAttribute('name','theme-color');
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute('content', color);
+    }catch(e){}
+  }
+
+  // Run immediately.
+  setThemeMode(getThemeMode());
+
+  // Expose a tiny API so Settings can flip themes without waiting on page reload.
+  window.PortalApp = window.PortalApp || {};
+  window.PortalApp.Theme = window.PortalApp.Theme || {
+    key: THEME_STORE_KEY,
+    get: getThemeMode,
+    set: setThemeMode,
+    apply: () => setThemeMode(getThemeMode())
+  };
 
   function getPathname(){
     try{

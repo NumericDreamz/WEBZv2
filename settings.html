@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b0b0b" />
   <title>Settings</title>
 
   <link rel="icon" href="favicon.ico" />
@@ -16,6 +17,7 @@
       padding: 90px 18px 28px 18px; /* top padding clears hamburger */
       box-sizing: border-box;
     }
+
     .page-title {
       font-size: 22px;
       letter-spacing: 0.12em;
@@ -23,117 +25,175 @@
       opacity: 0.9;
       margin: 0 0 10px 0;
     }
+
     .page-card {
       border: 1px solid rgba(255,255,255,0.10);
       background: rgba(0,0,0,0.35);
       border-radius: 14px;
       padding: 16px;
     }
+
     .page-note {
       opacity: 0.75;
       line-height: 1.45;
+      margin: 0;
     }
-    a.inline-link {
-      color: inherit;
-      text-decoration: underline;
-      opacity: 0.9;
-    }
-    .settings-row {
-      display: flex;
-      flex-wrap: wrap;
+
+    .settings-grid {
+      display: grid;
       gap: 14px;
-      align-items: center;
-      margin: 12px 0;
+      margin-top: 14px;
     }
+
     .settings-pill {
       border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 999px;
-      padding: 8px 12px;
-      background: rgba(0,0,0,0.20);
-      opacity: 0.95;
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      background: rgba(0,0,0,0.25);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
     }
+
+    .pill-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .pill-title {
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .pill-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      opacity: 0.85;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
     .dataset-box {
       border: 1px solid rgba(255,255,255,0.10);
-      border-radius: 12px;
-      padding: 12px;
       background: rgba(0,0,0,0.25);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .ds-title {
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .ds-desc {
+      margin-top: 6px;
+      opacity: 0.75;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .ds-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
       margin-top: 12px;
     }
+
     .ds-option {
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-      padding: 10px 10px;
-      border-radius: 10px;
       border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(0,0,0,0.18);
-      margin-bottom: 10px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 12px;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
       cursor: pointer;
       user-select: none;
     }
-    .ds-option:last-child { margin-bottom: 0; }
-    .ds-option input { margin-top: 3px; }
-    .ds-title {
-      font-weight: 800;
-      letter-spacing: 0.10em;
-      text-transform: uppercase;
-      font-size: 12px;
-      opacity: 0.95;
+
+    .ds-option:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.14);
     }
-    .ds-desc {
-      font-size: 12px;
-      opacity: 0.75;
-      margin-top: 4px;
-      line-height: 1.35;
-    }
-    .settings-actions {
+
+    .ds-option input { margin: 0; }
+
+    .ds-label {
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 14px;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
     }
+
+    .ds-name {
+      font-weight: 900;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+    }
+
+    .ds-hint {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    .settings-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
     .btn-lite {
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
       color: inherit;
       border-radius: 12px;
-      padding: 10px 14px;
+      padding: 10px 12px;
       cursor: pointer;
-      font-weight: 700;
+      font-weight: 900;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       font-size: 12px;
-      opacity: 0.95;
     }
-    .btn-lite:hover { opacity: 1; }
 
-.metric-dump{
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 12px;
-  line-height: 1.35;
-  white-space: pre;
-  background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 12px;
-  padding: 12px;
-  overflow: auto;
-  margin-top: 10px;
-}
-.metric-actions{
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
-}
+    .btn-lite:hover {
+      background: rgba(255,255,255,0.09);
+      border-color: rgba(255,255,255,0.20);
+    }
+
+    .metric-dump {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.18);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre;
+      overflow: auto;
+    }
+
+    @media (max-width: 700px) {
+      .ds-options { grid-template-columns: 1fr; }
+    }
   </style>
 
-  <script src="js/config.js?v=20260212_03" defer></script>
-  <script src="js/persistence.js?v=20260212_03" defer></script>
-  <script src="js/storage.js?v=20260212_03" defer></script>
-  <script src="js/settingsPage.js?v=2602171120" defer></script>
+  <script src="js/config.js?v=20260217_03" defer></script>
+  <script src="js/persistence.js?v=20260217_01" defer></script>
+  <script src="js/storage.js?v=20260217_01" defer></script>
+  <script src="js/settingsPage.js?v=2602180658" defer></script>
 </head>
 
 <body>
@@ -147,62 +207,113 @@
     <h1 class="page-title">Settings</h1>
 
     <div class="page-card">
-      <div class="settings-row">
-        <div class="settings-pill">Build: <span id="envBuild">?</span></div>
-        <div class="settings-pill">Dataset: <span id="envDataset">?</span></div>
-      </div>
-
-      <div class="dataset-box">
-        <div class="page-note" style="margin-bottom:10px;">
-          Pick which dataset this device writes to. This setting is local-only (so your phone doesn’t decide your desktop’s fate).
-        </div>
-
-        <label class="ds-option" for="dsStable">
-          <input type="radio" name="dataset" id="dsStable" value="stable">
-          <div>
-            <div class="ds-title">Stable</div>
-            <div class="ds-desc">Your real, day-to-day data. The one you’ll be mad about losing.</div>
-          </div>
-        </label>
-
-        <label class="ds-option" for="dsBeta">
-          <input type="radio" name="dataset" id="dsBeta" value="beta">
-          <div>
-            <div class="ds-title">Beta</div>
-            <div class="ds-desc">Test data for experiments. Break stuff here, not in production.</div>
-          </div>
-        </label>
-
-        <div class="settings-actions">
-          <button class="btn-lite" id="applyDataset" type="button">Apply + Reload</button>
-          <button class="btn-lite" id="clearLocal" type="button">Clear Local Cache</button>
-        </div>
-
-        <div class="page-note" style="margin-top:12px;">
-          Remote target: <span id="envDashboardId">?</span> • <span id="envUrl">?</span>
-        </div>
-      </div>
-
-
-<div class="dataset-box" style="margin-top:14px;">
-  <div class="ds-title">Display Metrics</div>
-  <div class="page-note" style="margin-top:6px;">
-    This is what your browser thinks your screen is. Use <b>Viewport</b> for breakpoints (not the marketing "1440p" number).
-  </div>
-
-  <pre id="displayMetrics" class="metric-dump">Loading…</pre>
-
-  <div class="metric-actions">
-    <button class="btn-lite" id="copyMetrics" type="button">Copy Metrics</button>
-  </div>
-</div>
-
-      <p class="page-note" style="margin-top:14px;">
-        Go back to <a class="inline-link" href="./index.html">Home</a>.
+      <p class="page-note">
+        This page controls per-device settings and diagnostic info.
       </p>
+
+      <div class="settings-grid">
+        <div class="settings-pill">
+          <div class="pill-left">
+            <div class="pill-title">Build</div>
+            <div class="pill-value" id="envBuild">…</div>
+          </div>
+        </div>
+
+        <div class="settings-pill">
+          <div class="pill-left">
+            <div class="pill-title">Dataset</div>
+            <div class="pill-value" id="envDataset">…</div>
+          </div>
+        </div>
+
+        <div class="settings-pill">
+          <div class="pill-left">
+            <div class="pill-title">Dashboard ID</div>
+            <div class="pill-value" id="envDashboardId">…</div>
+          </div>
+        </div>
+
+        <div class="settings-pill">
+          <div class="pill-left">
+            <div class="pill-title">Web App</div>
+            <div class="pill-value" id="envUrl">…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dataset-box" style="margin-top:14px;">
+        <div class="ds-title">Dataset selection</div>
+        <div class="ds-desc">
+          Choose which dataset this device reads/writes. This does not change the deployed build.
+        </div>
+
+        <div class="ds-options">
+          <label class="ds-option">
+            <input type="radio" name="dataset" id="dsStable" value="stable" />
+            <div class="ds-label">
+              <div class="ds-name">STABLE</div>
+              <div class="ds-hint">Real dashboard data</div>
+            </div>
+          </label>
+
+          <label class="ds-option">
+            <input type="radio" name="dataset" id="dsBeta" value="beta" />
+            <div class="ds-label">
+              <div class="ds-name">BETA</div>
+              <div class="ds-hint">Testing / sandbox</div>
+            </div>
+          </label>
+        </div>
+
+        <div class="settings-row">
+          <button class="btn-lite" id="applyDataset" type="button">Apply dataset</button>
+          <button class="btn-lite" id="clearLocal" type="button">Clear local cache</button>
+        </div>
+
+        <p class="page-note" style="margin-top:10px;">
+          “Clear local cache” only wipes this device’s cached state. It does not delete Sheet data.
+        </p>
+      </div>
+
+      <div class="dataset-box" style="margin-top:14px;">
+        <div class="ds-title">Appearance</div>
+        <div class="ds-desc">
+          Theme is stored locally per device. Your phone doesn’t get a vote on your desktop’s vibe.
+        </div>
+
+        <div class="settings-row" style="justify-content: space-between; align-items: center;">
+          <div style="min-width:0;">
+            <div class="ds-name" style="text-transform: uppercase; letter-spacing: 0.10em;">Dark Mode</div>
+            <div class="ds-hint">On = dark theme. Off = light theme.</div>
+          </div>
+
+          <label class="switch" style="flex:0 0 auto;">
+            <input type="checkbox" id="themeDark" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <p class="page-note" style="margin-top:10px;">
+          Current theme: <span id="themeLabel">…</span>
+        </p>
+      </div>
+
+      <div class="dataset-box" style="margin-top:14px;">
+        <div class="ds-title">Display metrics</div>
+        <div class="ds-desc">
+          Use this to tune breakpoints without playing pixel roulette.
+        </div>
+
+        <div class="settings-row">
+          <button class="btn-lite" id="copyMetrics" type="button">Copy Metrics</button>
+        </div>
+
+        <pre class="metric-dump" id="displayMetrics">Loading…</pre>
+      </div>
+
     </div>
   </div>
 
-  <script src="js/nav.js?v=20260212_03"></script>
+  <script src="js/nav.js?v=20260217_02"></script>
 </body>
 </html>

@@ -57,135 +57,177 @@
     };
   }
 
+  // =========================
+  // Theme toggle
+  // =========================
 
-function hasClipboard() {
-  return !!(navigator.clipboard && navigator.clipboard.writeText);
-}
+  const THEME_KEY = "ats_portal_theme_mode_v1";
 
-function mediaYesNo(q) {
-  try { return window.matchMedia(q).matches ? "YES" : "no"; } catch (_) { return "n/a"; }
-}
-
-function orientationText() {
-  try {
-    const o = screen.orientation;
-    if (o && o.type) return o.type + (typeof o.angle === "number" ? ` (${o.angle}°)` : "");
-  } catch (_) {}
-  // Fallback
-  try {
-    return window.matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
-  } catch (_) {
-    return "unknown";
+  function getThemeMode() {
+    const v = (localStorage.getItem(THEME_KEY) || "").toString().trim().toLowerCase();
+    return (v === "light" || v === "dark") ? v : "dark";
   }
-}
 
-function buildDisplayMetricsText() {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  function applyTheme(mode) {
+    const m = (mode === "light") ? "light" : "dark";
 
-  const vv = window.visualViewport;
-  const vvText = vv
-    ? `${Math.round(vv.width)} x ${Math.round(vv.height)}  (scale ${Number(vv.scale || 1).toFixed(2)})`
-    : "n/a";
+    try { localStorage.setItem(THEME_KEY, m); } catch (_) {}
 
-  const dpr = window.devicePixelRatio || 1;
+    // If nav.js already exposed Theme, use it (it also updates theme-color).
+    const api = window.PortalApp && window.PortalApp.Theme;
+    if (api && typeof api.set === "function") {
+      api.set(m);
+    } else {
+      document.documentElement.setAttribute("data-theme", m);
+    }
 
-  const sw = (screen && typeof screen.width === "number") ? screen.width : 0;
-  const sh = (screen && typeof screen.height === "number") ? screen.height : 0;
+    const label = $("themeLabel");
+    if (label) label.textContent = (m === "dark") ? "Dark" : "Light";
+  }
 
-  const aw = (screen && typeof screen.availWidth === "number") ? screen.availWidth : 0;
-  const ah = (screen && typeof screen.availHeight === "number") ? screen.availHeight : 0;
+  function initThemeToggle() {
+    const t = $("themeDark");
+    if (!t) return;
 
-  const physW = sw ? Math.round(sw * dpr) : 0;
-  const physH = sh ? Math.round(sh * dpr) : 0;
+    const mode = getThemeMode();
+    t.checked = (mode === "dark");
+    applyTheme(mode);
 
-  const bps = [2000, 1500, 1200, 1000, 800, 700, 600, 520].map(n => `<=${n}: ${mediaYesNo(`(max-width: ${n}px)`)}`).join("  ");
+    t.addEventListener("change", () => {
+      applyTheme(t.checked ? "dark" : "light");
+    });
+  }
 
-  const info = [
-    `Viewport:        ${vw} x ${vh}  (CSS px)`,
-    `Visual viewport: ${vvText}`,
-    `Screen:          ${sw} x ${sh}  (CSS px)`,
-    `Screen (avail):  ${aw} x ${ah}  (CSS px)`,
-    `DevicePixelRatio:${dpr}`,
-    `Approx physical: ${physW} x ${physH}  (device px)`,
-    `Orientation:     ${orientationText()}`,
-    `Hover:           ${mediaYesNo("(hover: hover)")}   (none: ${mediaYesNo("(hover: none)")})`,
-    `Pointer:         fine ${mediaYesNo("(pointer: fine)")}   coarse ${mediaYesNo("(pointer: coarse)")}`,
-    `Breakpoints:     ${bps}`,
-    ``,
-    `Tip: Use "Viewport" for CSS breakpoints. Phones report smaller CSS widths than their hardware pixels.`
-  ];
+  // =========================
+  // Display metrics
+  // =========================
 
-  return info.join("\n");
-}
+  function hasClipboard() {
+    return !!(navigator.clipboard && navigator.clipboard.writeText);
+  }
 
-function initDisplayMetricsPanel() {
-  const dump = $("displayMetrics");
-  if (!dump) return;
+  function mediaYesNo(q) {
+    try { return window.matchMedia(q).matches ? "YES" : "no"; } catch (_) { return "n/a"; }
+  }
 
-  const copyBtn = $("copyMetrics");
-  if (copyBtn) {
-    copyBtn.style.display = hasClipboard() ? "inline-block" : "none";
-    copyBtn.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(dump.textContent || "");
-        copyBtn.textContent = "Copied";
-        setTimeout(() => { copyBtn.textContent = "Copy Metrics"; }, 900);
-      } catch (_) {
-        // Fallback: select text for manual copy
+  function orientationText() {
+    try {
+      const o = screen.orientation;
+      if (o && o.type) return o.type + (typeof o.angle === "number" ? ` (${o.angle}°)` : "");
+    } catch (_) {}
+
+    try {
+      return window.matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
+    } catch (_) {
+      return "unknown";
+    }
+  }
+
+  function buildDisplayMetricsText() {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const vv = window.visualViewport;
+    const vvText = vv
+      ? `${Math.round(vv.width)} x ${Math.round(vv.height)}  (scale ${Number(vv.scale || 1).toFixed(2)})`
+      : "n/a";
+
+    const dpr = window.devicePixelRatio || 1;
+
+    const sw = (screen && typeof screen.width === "number") ? screen.width : 0;
+    const sh = (screen && typeof screen.height === "number") ? screen.height : 0;
+
+    const aw = (screen && typeof screen.availWidth === "number") ? screen.availWidth : 0;
+    const ah = (screen && typeof screen.availHeight === "number") ? screen.availHeight : 0;
+
+    const physW = sw ? Math.round(sw * dpr) : 0;
+    const physH = sh ? Math.round(sh * dpr) : 0;
+
+    const bps = [2000, 1500, 1200, 1000, 800, 700, 600, 520]
+      .map(n => `<=${n}: ${mediaYesNo(`(max-width: ${n}px)`)}`)
+      .join("  ");
+
+    const info = [
+      `Viewport:        ${vw} x ${vh}  (CSS px)`,
+      `Visual viewport: ${vvText}`,
+      `Screen:          ${sw} x ${sh}  (CSS px)`,
+      `Screen (avail):  ${aw} x ${ah}  (CSS px)`,
+      `DevicePixelRatio:${dpr}`,
+      `Approx physical: ${physW} x ${physH}  (device px)`,
+      `Orientation:     ${orientationText()}`,
+      `Hover:           ${mediaYesNo("(hover: hover)")}   (none: ${mediaYesNo("(hover: none)")})`,
+      `Pointer:         fine ${mediaYesNo("(pointer: fine)")}   coarse ${mediaYesNo("(pointer: coarse)")}`,
+      `Breakpoints:     ${bps}`,
+      ``,
+      `Tip: Use "Viewport" for CSS breakpoints. Phones report smaller CSS widths than their hardware pixels.`
+    ];
+
+    return info.join("\n");
+  }
+
+  function initDisplayMetricsPanel() {
+    const dump = $("displayMetrics");
+    if (!dump) return;
+
+    const copyBtn = $("copyMetrics");
+    if (copyBtn) {
+      copyBtn.style.display = hasClipboard() ? "inline-block" : "none";
+      copyBtn.addEventListener("click", async () => {
         try {
-          const range = document.createRange();
-          range.selectNodeContents(dump);
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
-        } catch (_) {}
+          await navigator.clipboard.writeText(dump.textContent || "");
+          copyBtn.textContent = "Copied";
+          setTimeout(() => { copyBtn.textContent = "Copy Metrics"; }, 900);
+        } catch (_) {
+          try {
+            const range = document.createRange();
+            range.selectNodeContents(dump);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+          } catch (_) {}
+        }
+      });
+    }
+
+    let raf = 0;
+    const update = () => { dump.textContent = buildDisplayMetricsText(); };
+    const schedule = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        update();
+      });
+    };
+
+    update();
+    window.addEventListener("resize", schedule, { passive: true });
+    window.addEventListener("orientationchange", schedule, { passive: true });
+
+    try {
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", schedule, { passive: true });
+        window.visualViewport.addEventListener("scroll", schedule, { passive: true });
       }
-    });
+    } catch (_) {}
   }
 
-  let raf = 0;
-  const update = () => {
-    dump.textContent = buildDisplayMetricsText();
-  };
-  const schedule = () => {
-    if (raf) return;
-    raf = requestAnimationFrame(() => {
-      raf = 0;
-      update();
-    });
-  };
+  async function clearDeviceCaches() {
+    // Cache Storage (service worker caches)
+    try {
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch (_) {}
 
-  update();
-  window.addEventListener("resize", schedule, { passive: true });
-  window.addEventListener("orientationchange", schedule, { passive: true });
-
-  try {
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", schedule, { passive: true });
-      window.visualViewport.addEventListener("scroll", schedule, { passive: true });
-    }
-  } catch (_) {}
-}
-
-async function clearDeviceCaches() {
-  // Cache Storage (service worker caches)
-  try {
-    if ("caches" in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
-    }
-  } catch (_) {}
-
-  // Unregister service workers (so they don't resurrect old caches)
-  try {
-    if ("serviceWorker" in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r => r.unregister()));
-    }
-  } catch (_) {}
-}
-
+    // Unregister service workers (so they don't resurrect old caches)
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+    } catch (_) {}
+  }
 
   function init() {
     const env = getEnv();
@@ -211,6 +253,7 @@ async function clearDeviceCaches() {
 
     applyEnvMarker(cfg.label);
 
+    initThemeToggle();
     initDisplayMetricsPanel();
 
     $("applyDataset").addEventListener("click", () => {
@@ -231,31 +274,30 @@ async function clearDeviceCaches() {
       location.reload();
     });
 
-    
-$("clearLocal").addEventListener("click", async () => {
-  const selected = beta.checked ? "beta" : "stable";
-  const keys = datasetLocalKeys(selected);
+    $("clearLocal").addEventListener("click", async () => {
+      const selected = beta.checked ? "beta" : "stable";
+      const keys = datasetLocalKeys(selected);
 
-  const ok = confirm(`Clear local cache for "${selected}" on this device? This does NOT delete the sheet data.\n\nNote: This also clears the PWA cache so stale CSS/JS stops haunting you.`);
-  if (!ok) return;
+      const ok = confirm(`Clear local cache for "${selected}" on this device? This does NOT delete the sheet data.\n\nNote: This also clears the PWA cache so stale CSS/JS stops haunting you.`);
+      if (!ok) return;
 
-  try { localStorage.removeItem(keys.master); } catch (_) {}
-  try { localStorage.removeItem(keys.cache); } catch (_) {}
-  try { localStorage.removeItem(keys.lastSync); } catch (_) {}
+      try { localStorage.removeItem(keys.master); } catch (_) {}
+      try { localStorage.removeItem(keys.cache); } catch (_) {}
+      try { localStorage.removeItem(keys.lastSync); } catch (_) {}
 
-  // Also clear legacy master if we're nuking stable and it exists (older builds)
-  if (selected === "stable") {
-    try { localStorage.removeItem("ats_portal_state_v1"); } catch (_) {}
-    try { localStorage.removeItem("portal_state_cache_v1"); } catch (_) {}
-  }
+      // Also clear legacy master if we're nuking stable and it exists (older builds)
+      if (selected === "stable") {
+        try { localStorage.removeItem("ats_portal_state_v1"); } catch (_) {}
+        try { localStorage.removeItem("portal_state_cache_v1"); } catch (_) {}
+      }
 
-  await clearDeviceCaches();
+      await clearDeviceCaches();
 
-  // Force a clean reload
-  const url = new URL(location.href);
-  url.searchParams.set("v", Date.now().toString());
-  location.replace(url.toString());
-});
+      // Force a clean reload
+      const url = new URL(location.href);
+      url.searchParams.set("v", Date.now().toString());
+      location.replace(url.toString());
+    });
   }
 
   if (document.readyState === "loading") {
