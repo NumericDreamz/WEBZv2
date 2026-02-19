@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  console.log("[StatusMini] build 2026-02-19_02 loaded");
+  console.log("[StatusMini] build 2026-02-19_06 loaded");
 
   window.PortalWidgets = window.PortalWidgets || {};
 
@@ -121,6 +121,8 @@
   }
 
   function pickProblemDesc(item) {
+    // "What is actually wrong" tends to live here.
+    // (Fallbacks keep the UI from going blank if upstream changes.)
     return String(
       item?.workOrderDescription ||
       item?.notes ||
@@ -199,7 +201,7 @@
 
     wrap.classList.add("is-open");
 
-    const order = ["down", "reduced", "complete"];
+    const order = ["down", "reduced", "complete"]; // fixed stacking order
     let html = "";
 
     for (const cat of order) {
@@ -281,12 +283,14 @@
       }
 
       const items = Array.isArray(data.items) ? data.items.slice() : [];
+      // Keep a stable order for list rendering.
       items.sort(sortNewestFirst);
 
       state.items = items;
       renderCounts(root, state.items);
       renderList(root, state.items, state);
     } catch (err) {
+      // If the widget is collapsed, fail quietly (counts stay as-is).
       if (anySelected(state)) {
         const wrap = root.querySelector("#sminiListWrap");
         const list = root.querySelector("#sminiList");

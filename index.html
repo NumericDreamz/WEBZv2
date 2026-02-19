@@ -10,7 +10,7 @@
 
   
   <link rel="icon" href="favicon.ico" />
-  <link rel="stylesheet" href="css/styles.css?v=20260219_04" />
+  <link rel="stylesheet" href="css/styles.css?v=20260219_06" />
 
   
   <link rel="stylesheet" href="css/nav.css?v=20260219_01" />
@@ -25,9 +25,12 @@
   <script src="js/widgets/yearly.js?v=20260208_1" defer></script>
   <script src="js/widgets/recentTasks.js?v=20260208_1" defer></script>
   <script src="js/widgets/tier1Briefing.js?v=20260212_02" defer></script>
+
+  <!-- Backlog widget loader -->
   <script src="js/widgets/backlog.js?v=20260217_01" defer></script>
-  <script src="js/widgets/statusMini.js?v=20260219_99"></script>
-  
+
+  <script src="js/widgets/statusMini.js?v=20260219_06" defer></script>
+
   <script src="js/app.js?v=20260219_01" defer></script>
 </head>
 
@@ -113,28 +116,28 @@
       <!-- ================== BACKLOG WIDGET END ================== -->
 
       <!-- ================= STATUS MONITOR MINI START ================ -->
-<div class="smini-badges">
-  <button class="smini-badge is-down" data-cat="down" type="button" aria-pressed="false">
-    <span class="smini-dot"></span>
-    <span class="smini-label">Down</span>
-    <span class="smini-count" id="sminiDownCount">0</span>
-  </button>
+      <section id="statusMiniWidget" class="widget statusMiniWidget" aria-label="Status Monitor summary">
+        <div class="widgetHeader">
+          <div class="widgetTitle">Status Monitor</div>
+          <button id="sminiRefresh" class="btn subtle" type="button" aria-label="Refresh status">Refresh</button>
+        </div>
 
-  <button class="smini-badge is-reduced" data-cat="reduced" type="button" aria-pressed="false">
-    <span class="smini-dot"></span>
-    <span class="smini-label">Reduced</span>
-    <span class="smini-count" id="sminiReducedCount">0</span>
-  </button>
+        <div class="smini-top" aria-label="Status counts">
+          <button class="smini-badge down" type="button" data-cat="down" aria-label="Down items" aria-pressed="false">
+            <span id="sminiDownCount">0</span>
+          </button>
+          <button class="smini-badge reduced" type="button" data-cat="reduced" aria-label="Reduced items" aria-pressed="false">
+            <span id="sminiReducedCount">0</span>
+          </button>
+          <button class="smini-badge complete" type="button" data-cat="complete" aria-label="Completed items" aria-pressed="false">
+            <span id="sminiCompleteCount">0</span>
+          </button>
+        </div>
 
-  <button class="smini-badge is-complete" data-cat="complete" type="button" aria-pressed="false">
-    <span class="smini-dot"></span>
-    <span class="smini-label">Complete</span>
-    <span class="smini-count" id="sminiCompleteCount">0</span>
-  </button>
-
-  <button id="sminiRefresh" class="smini-refresh" type="button">Refresh</button>
-</div>
-      
+        <div id="sminiListWrap" class="smini-listWrap" aria-label="Status list">
+          <div id="sminiList" class="smini-list"></div>
+        </div>
+      </section>
       <!-- ================= STATUS MONITOR MINI END ================== -->
 
 
