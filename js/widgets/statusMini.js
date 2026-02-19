@@ -1,10 +1,9 @@
 (function () {
   "use strict";
 
-  console.log("[StatusMini] build 2026-02-19_04 loaded");
+  console.log("[StatusMini] build 2026-02-19_05 loaded");
 
   window.PortalWidgets = window.PortalWidgets || {};
-
   const DEFAULTS = { timeoutMs: 10000 };
 
   function esc(s) {
@@ -27,7 +26,6 @@
         };
       }
     } catch (_) {}
-
     return {
       webAppUrl: String(window.PORTALSTATE_WEBAPP_URL || "").trim(),
       token: String(window.PORTALSTATE_TOKEN || "").trim()
@@ -78,11 +76,9 @@
   function isDown(st) {
     return String(st || "").trim().toLowerCase() === "down";
   }
-
   function isReduced(st) {
     return String(st || "").trim().toLowerCase() === "reduced";
   }
-
   function isComplete(item) {
     const ws = String(item?.workOrderStatus || "").trim().toLowerCase();
     if (ws === "complete" || ws === "completed") return true;
@@ -121,12 +117,7 @@
   }
 
   function pickProblemDesc(item) {
-    return String(
-      item?.workOrderDescription ||
-      item?.notes ||
-      item?.subject ||
-      ""
-    ).trim();
+    return String(item?.workOrderDescription || item?.notes || item?.subject || "").trim();
   }
 
   function pickAssetId(item) {
@@ -178,7 +169,7 @@
     setTextIfExists(root, "#smReducedCount", reduced);
     setTextIfExists(root, "#smCompleteCount", completed);
 
-    // legacy ids (if present)
+    // legacy ids (if any remain)
     setTextIfExists(root, "#sminiDownCount", down);
     setTextIfExists(root, "#sminiReducedCount", reduced);
     setTextIfExists(root, "#sminiCompleteCount", completed);
@@ -254,7 +245,6 @@
   }
 
   function setActive(root, state) {
-    // SVG shapes
     root.querySelectorAll("#smGlyph .sm-shape[data-key]").forEach(g => {
       const key = normalizeCat(g.getAttribute("data-key"));
       if (!key) return;
@@ -263,7 +253,6 @@
       g.setAttribute("aria-pressed", on ? "true" : "false");
     });
 
-    // legacy badges (if present)
     root.querySelectorAll(".smini-badge[data-cat]").forEach(b => {
       const key = normalizeCat(b.getAttribute("data-cat"));
       if (!key) return;
@@ -288,7 +277,7 @@
     const refreshBtn = root.querySelector("#sminiRefresh");
     if (refreshBtn) refreshBtn.addEventListener("click", () => refresh(root, state));
 
-    // Bind SVG shapes directly (reliable across mobile browsers)
+    // Bind SVG shapes directly (SVG closest() is flaky on some mobile builds)
     root.querySelectorAll("#smGlyph .sm-shape[data-key]").forEach(g => {
       const key = normalizeCat(g.getAttribute("data-key"));
       if (!key) return;
@@ -302,7 +291,7 @@
       });
     });
 
-    // Legacy badge click (if present)
+    // Legacy badge clicks (if they exist)
     root.addEventListener("click", (e) => {
       const btn = e.target && e.target.closest ? e.target.closest(".smini-badge[data-cat]") : null;
       if (!btn) return;
@@ -341,6 +330,9 @@
     const root = (typeof rootId === "string") ? document.getElementById(rootId) : rootId;
     if (!root) return;
 
+    if (root.dataset && root.dataset.sminiInit === "1") return;
+    if (root.dataset) root.dataset.sminiInit = "1";
+
     const state = {
       items: [],
       cats: { down: false, reduced: false, completed: false },
@@ -350,6 +342,27 @@
     wire(root, state);
     setActive(root, state);
     refresh(root, state);
+  }
+
+  // Auto-init safety net: if app.js order/caching prevents init, we still boot.
+  function autoInit() {
+    const glyph = document.getElementById("smGlyph");
+    if (!glyph) return;
+
+    let p = glyph.parentElement;
+    while (p && p !== document.body) {
+      if (p.querySelector("#sminiListWrap") && p.querySelector("#sminiList")) {
+        init(p);
+        return;
+      }
+      p = p.parentElement;
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", autoInit, { once: true });
+  } else {
+    autoInit();
   }
 
   window.PortalWidgets.StatusMini = { init };
