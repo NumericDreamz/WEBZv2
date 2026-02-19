@@ -132,12 +132,103 @@
 
     if(!drawer || !burger || !overlay) return;
 
+    const kebab = root.querySelector('.ats-drawer__kebab');
+    const quick = root.querySelector('#atsQuick');
+    const themeToggle = root.querySelector('#atsThemeToggle');
+    const themeLabel = root.querySelector('#atsThemeLabel');
+    const dsLabel = root.querySelector('#atsDatasetLabel');
+    const dsBtns = Array.from(root.querySelectorAll('[data-ats-ds]'));
+
+    function syncQuick(){
+      if(themeToggle){
+        const isDark = getThemeMode() === 'dark';
+        themeToggle.checked = isDark;
+        if(themeLabel) themeLabel.textContent = isDark ? 'Theme: Dark' : 'Theme: Light';
+      }
+      if(dsLabel){
+        const k = getDatasetKey();
+        dsLabel.textContent = 'Current: ' + k.toUpperCase();
+      }
+      if(dsBtns && dsBtns.length){
+        const k = getDatasetKey();
+        dsBtns.forEach(btn=>{
+          const dk = (btn.getAttribute('data-ats-ds')||'').toString().trim().toLowerCase();
+          btn.classList.toggle('is-active', dk === k);
+        });
+      }
+      if(kebab){
+        const open = quick && quick.classList.contains('is-open');
+        kebab.classList.toggle('is-open', !!open);
+        try{ kebab.setAttribute('aria-expanded', open ? 'true' : 'false'); }catch(e){}
+      }
+      if(quick){
+        try{ quick.setAttribute('aria-hidden', quick.classList.contains('is-open') ? 'false' : 'true'); }catch(e){}
+      }
+    }
+
+    function openQuick(){
+      if(!quick) return;
+      quick.classList.add('is-open');
+      if(kebab) kebab.classList.add('is-open');
+      syncQuick();
+    }
+
+    function closeQuick(){
+      if(!quick) return;
+      quick.classList.remove('is-open');
+      if(kebab) kebab.classList.remove('is-open');
+      syncQuick();
+    }
+
+    function toggleQuick(){
+      if(!quick) return;
+      if(quick.classList.contains('is-open')) closeQuick();
+      else openQuick();
+    }
+
+    if(kebab && quick){
+      kebab.addEventListener('click', (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        toggleQuick();
+      });
+    }
+
+    if(themeToggle){
+      themeToggle.addEventListener('change', ()=>{
+        setThemeMode(themeToggle.checked ? 'dark' : 'light');
+        syncQuick();
+      });
+    }
+
+    if(dsBtns && dsBtns.length){
+      dsBtns.forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const target = (btn.getAttribute('data-ats-ds')||'').toString().trim().toLowerCase();
+          if(!target) return;
+          if(target !== getDatasetKey()){
+            try{
+              const env = window.PortalApp && window.PortalApp.Env;
+              if(env && typeof env.setDatasetKey === 'function') env.setDatasetKey(target);
+              else localStorage.setItem(DATASET_STORE_KEY, target);
+            }catch(e){}
+            // Dataset changes need a reload so every page pulls the correct endpoints.
+            try{ window.location.reload(); }catch(e){}
+            return;
+          }
+          closeDrawer();
+        });
+      });
+    }
+
+
     function openDrawer(){
       drawer.classList.add('is-open');
       overlay.hidden = false;
       drawer.setAttribute('aria-hidden', 'false');
       burger.setAttribute('aria-expanded', 'true');
       document.body.classList.add('ats-drawer-lock');
+      try{ syncQuick(); }catch(e){}
     }
 
     function closeDrawer(){
@@ -146,6 +237,7 @@
       drawer.setAttribute('aria-hidden', 'true');
       burger.setAttribute('aria-expanded', 'false');
       document.body.classList.remove('ats-drawer-lock');
+      try{ closeQuick(); }catch(e){}
     }
 
     burger.addEventListener('click', ()=>{

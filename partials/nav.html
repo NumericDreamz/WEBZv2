@@ -25,8 +25,33 @@
       <li><a class="ats-drawer__link" href="./settings.html" data-ats-link>Settings</a></li>
     </ul>
 
+
+    <div class="ats-drawer__quick" id="atsQuick" aria-hidden="true">
+      <div class="ats-quickRow">
+        <div class="ats-quickLeft">
+          <div class="ats-quickTitle">Appearance</div>
+          <div class="ats-quickSub" id="atsThemeLabel">Theme: …</div>
+        </div>
+        <label class="switch ats-quickSwitch" title="Toggle dark mode">
+          <input type="checkbox" id="atsThemeToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="ats-quickRow">
+        <div class="ats-quickLeft">
+          <div class="ats-quickTitle">Dataset</div>
+          <div class="ats-quickSub" id="atsDatasetLabel">Current: …</div>
+        </div>
+        <div class="ats-quickBtns" role="group" aria-label="Dataset selection">
+          <button class="ats-quickBtn" type="button" data-ats-ds="stable">Stable</button>
+          <button class="ats-quickBtn" type="button" data-ats-ds="beta">Beta</button>
+        </div>
+      </div>
+    </div>
+
     <div class="ats-drawer__footer">
-      <button class="ats-drawer__kebab" type="button" aria-label="More options">
+      <button class="ats-drawer__kebab" type="button" aria-label="More options" aria-controls="atsQuick" aria-expanded="false">
         <img src="./images/icons/kebab.svg" alt="">
       </button>
     </div>

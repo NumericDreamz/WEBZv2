@@ -29,6 +29,11 @@
   --goodText: #b8ffcc;
   --goodDot: #22c55e;
 
+  --warnBg: rgba(61, 44, 0, 0.70);
+  --warnBorder: rgba(142, 106, 0, 0.85);
+  --warnText: rgba(255, 236, 180, 0.95);
+  --warnDot: rgba(255, 191, 0, 0.95);
+
   /* Spacing knobs (single source of truth) */
   --head-gap: 10px;    /* title area -> next element */
   --meta-gap: 10px;    /* date pill / progress bar -> first row */
@@ -75,6 +80,11 @@
   --goodBorder: #8fd6a1;
   --goodText: #0b3a1a;
   --goodDot: #22c55e;
+
+  --warnBg: rgba(255, 242, 204, 0.85);
+  --warnBorder: rgba(183, 139, 0, 0.75);
+  --warnText: rgba(91, 67, 0, 0.95);
+  --warnDot: rgba(210, 141, 0, 0.95);
 
   --surface: #ffffff;
   --gridHover: #eef1f5;
@@ -1311,3 +1321,151 @@ body{
 :root[data-theme="light"] .backlogWidget .seg-base{ stroke: rgba(0,0,0,0.10); }
 :root[data-theme="light"] .backlogWidget .seg-unassigned{ stroke: rgba(0,0,0,0.28); }
 :root[data-theme="light"] .backlogWidget .dot-unassigned{ background: rgba(0,0,0,0.28); }
+
+
+/* ===========================
+   Status Monitor mini widget (index)
+   =========================== */
+
+.statusMiniWidget{
+  padding: 12px 14px 14px 14px;
+}
+
+.smini-top{
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 2px 0 2px 0;
+}
+
+.smini-badge{
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+  background: var(--panel2);
+  border: 2px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  transition: transform .06s ease, background-color .12s ease, border-color .12s ease, filter .12s ease;
+}
+
+.smini-badge:hover{
+  filter: brightness(1.05);
+}
+
+.smini-badge:active{
+  transform: translateY(1px);
+}
+
+.smini-badge.is-active{
+  border-width: 3px;
+}
+
+.smini-badge.down.is-active{
+  background: var(--badBg);
+  border-color: var(--badBorder);
+  color: var(--badText);
+}
+
+.smini-badge.reduced.is-active{
+  background: var(--warnBg);
+  border-color: var(--warnBorder);
+  color: var(--warnText);
+}
+
+.smini-badge.complete.is-active{
+  background: var(--goodBg);
+  border-color: var(--goodBorder);
+  color: var(--goodText);
+}
+
+.smini-listWrap{
+  margin-top: 10px;
+  display: none;
+}
+
+.smini-listWrap.is-open{
+  display: block;
+}
+
+.smini-list{
+  display: grid;
+  gap: 8px;
+}
+
+.smini-item{
+  border-radius: 10px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  min-width: 0;
+}
+
+.smini-item.is-down{
+  background: rgba(42, 11, 11, 0.50);
+  border-color: rgba(90, 28, 28, 0.90);
+}
+
+:root[data-theme="light"] .smini-item.is-down{
+  background: rgba(255, 233, 233, 0.92);
+  border-color: rgba(255, 179, 179, 0.95);
+}
+
+.smini-item.is-reduced{
+  background: rgba(61, 44, 0, 0.45);
+  border-color: rgba(142, 106, 0, 0.70);
+}
+
+:root[data-theme="light"] .smini-item.is-reduced{
+  background: rgba(255, 242, 204, 0.92);
+  border-color: rgba(183, 139, 0, 0.80);
+}
+
+.smini-item.is-complete{
+  background: rgba(11, 42, 18, 0.42);
+  border-color: rgba(31, 90, 42, 0.85);
+}
+
+:root[data-theme="light"] .smini-item.is-complete{
+  background: rgba(231, 248, 237, 0.92);
+  border-color: rgba(143, 214, 161, 0.95);
+}
+
+.smini-topline{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.smini-meta{
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.smini-desc{
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.smini-empty{
+  padding: 6px 2px;
+  color: var(--muted);
+}
