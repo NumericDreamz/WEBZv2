@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  console.log("[StatusMini] build 2026-02-19_02 loaded");
+  console.log("[StatusMini] build 2026-02-19_03 loaded");
 
   window.PortalWidgets = window.PortalWidgets || {};
 
@@ -122,7 +122,7 @@
 
   function pickProblemDesc(item) {
     // "What is actually wrong" tends to live here.
-    // (Fallbacks keep the UI from going blank if upstream changes.)
+    // Fallbacks keep UI from going blank if upstream changes.
     return String(
       item?.workOrderDescription ||
       item?.notes ||
@@ -153,22 +153,38 @@
     return bt - at;
   }
 
+  function normalizeCat(cat) {
+    const c = String(cat || "").trim().toLowerCase();
+    if (c === "complete") return "completed";
+    if (c === "completed") return "completed";
+    if (c === "down") return "down";
+    if (c === "reduced") return "reduced";
+    return "";
+  }
+
+  function setTextIfExists(root, selector, text) {
+    const el = root.querySelector(selector);
+    if (el) el.textContent = String(text);
+  }
+
   function renderCounts(root, items) {
-    let down = 0, reduced = 0, complete = 0;
+    let down = 0, reduced = 0, completed = 0;
 
     for (const it of items) {
-      if (isComplete(it)) { complete++; continue; }
+      if (isComplete(it)) { completed++; continue; }
       if (isDown(it?.operationalStatus)) down++;
       if (isReduced(it?.operationalStatus)) reduced++;
     }
 
-    const downEl = root.querySelector("#sminiDownCount");
-    const redEl = root.querySelector("#sminiReducedCount");
-    const compEl = root.querySelector("#sminiCompleteCount");
+    // NEW SVG ids
+    setTextIfExists(root, "#smDownCount", down);
+    setTextIfExists(root, "#smReducedCount", reduced);
+    setTextIfExists(root, "#smCompleteCount", completed);
 
-    if (downEl) downEl.textContent = String(down);
-    if (redEl) redEl.textContent = String(reduced);
-    if (compEl) compEl.textContent = String(complete);
+    // OLD circle ids (if still present anywhere)
+    setTextIfExists(root, "#sminiDownCount", down);
+    setTextIfExists(root, "#sminiReducedCount", reduced);
+    setTextIfExists(root, "#sminiCompleteCount", completed);
   }
 
   function filterItems(items, cat) {
@@ -178,14 +194,15 @@
     if (cat === "reduced") {
       return items.filter(it => !isComplete(it) && isReduced(it?.operationalStatus)).sort(sortNewestFirst);
     }
-    if (cat === "complete") {
+    if (cat === "completed") {
       return items.filter(it => isComplete(it)).sort(sortNewestFirst);
     }
     return [];
   }
 
   function anySelected(state) {
-    return !!(state?.cats?.down || state?.cats?.reduced || state?.cats?.complete);
+    const c = state?.cats || {};
+    return !!(c.down || c.reduced || c.completed);
   }
 
   function renderList(root, items, state) {
@@ -201,7 +218,7 @@
 
     wrap.classList.add("is-open");
 
-    const order = ["down", "reduced", "complete"]; // fixed stacking order
+    const order = ["down", "reduced", "completed"]; // fixed stacking order
     let html = "";
 
     for (const cat of order) {
@@ -241,10 +258,22 @@
   }
 
   function setActive(root, state) {
+    // NEW: SVG trapezoids
+    const shapes = Array.from(root.querySelectorAll("#smGlyph .sm-shape[data-key]"));
+    shapes.forEach(g => {
+      const key = normalizeCat(g.getAttribute("data-key"));
+      if (!key) return;
+      const is = !!state?.cats?.[key];
+      g.classList.toggle("is-selected", is);
+      g.setAttribute("aria-pressed", is ? "true" : "false");
+    });
+
+    // OLD: badges (if present)
     const btns = Array.from(root.querySelectorAll(".smini-badge[data-cat]"));
     btns.forEach(b => {
-      const c = String(b.getAttribute("data-cat") || "");
-      const is = !!state?.cats?.[c];
+      const key = normalizeCat(b.getAttribute("data-cat"));
+      if (!key) return;
+      const is = !!state?.cats?.[key];
       b.classList.toggle("is-active", is);
       b.setAttribute("aria-pressed", is ? "true" : "false");
     });
@@ -259,14 +288,46 @@
       refreshBtn.addEventListener("click", () => refresh(root, state));
     }
 
+    // Click handling (SVG + old badges)
     root.addEventListener("click", (e) => {
-      const btn = e.target && e.target.closest ? e.target.closest(".smini-badge[data-cat]") : null;
-      if (!btn) return;
+      const t = e.target;
 
-      const cat = String(btn.getAttribute("data-cat") || "");
-      if (!cat) return;
+      // SVG trapezoid group click
+      const shape = t && t.closest ? t.closest("#smGlyph .sm-shape[data-key]") : null;
+      if (shape) {
+        const key = normalizeCat(shape.getAttribute("data-key"));
+        if (!key) return;
+        state.cats[key] = !state.cats[key];
+        setActive(root, state);
+        renderList(root, state.items, state);
+        return;
+      }
 
-      state.cats[cat] = !state.cats[cat];
+      // Old badge click (if still present)
+      const btn = t && t.closest ? t.closest(".smini-badge[data-cat]") : null;
+      if (btn) {
+        const key = normalizeCat(btn.getAttribute("data-cat"));
+        if (!key) return;
+        state.cats[key] = !state.cats[key];
+        setActive(root, state);
+        renderList(root, state.items, state);
+      }
+    });
+
+    // Keyboard activation for SVG shapes
+    root.addEventListener("keydown", (e) => {
+      const k = e.key;
+      if (k !== "Enter" && k !== " ") return;
+
+      const t = e.target;
+      const shape = t && t.closest ? t.closest("#smGlyph .sm-shape[data-key]") : null;
+      if (!shape) return;
+
+      e.preventDefault();
+      const key = normalizeCat(shape.getAttribute("data-key"));
+      if (!key) return;
+
+      state.cats[key] = !state.cats[key];
       setActive(root, state);
       renderList(root, state.items, state);
     });
@@ -283,7 +344,6 @@
       }
 
       const items = Array.isArray(data.items) ? data.items.slice() : [];
-      // Keep a stable order for list rendering.
       items.sort(sortNewestFirst);
 
       state.items = items;
@@ -307,7 +367,12 @@
     const root = (typeof rootId === "string") ? document.getElementById(rootId) : rootId;
     if (!root) return;
 
-    const state = { items: [], cats: { down: false, reduced: false, complete: false }, __wired: false };
+    const state = {
+      items: [],
+      cats: { down: false, reduced: false, completed: false },
+      __wired: false
+    };
+
     wire(root, state);
     setActive(root, state);
     refresh(root, state);
