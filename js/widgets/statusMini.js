@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  console.log("[StatusMini] build 2026-02-19_01 loaded");
+  console.log("[StatusMini] build 2026-02-19_02 loaded");
 
   window.PortalWidgets = window.PortalWidgets || {};
 
@@ -116,8 +116,19 @@
     return jsonp(endpoint, DEFAULTS.timeoutMs);
   }
 
-  function pickDesc(item) {
-    return String(item?.assetDescription || item?.workOrderDescription || "").trim();
+  function pickAssetDesc(item) {
+    return String(item?.assetDescription || "").trim();
+  }
+
+  function pickProblemDesc(item) {
+    // "What is actually wrong" tends to live here.
+    // (Fallbacks keep the UI from going blank if upstream changes.)
+    return String(
+      item?.workOrderDescription ||
+      item?.notes ||
+      item?.subject ||
+      ""
+    ).trim();
   }
 
   function pickAssetId(item) {
@@ -173,49 +184,67 @@
     return [];
   }
 
-  function renderList(root, items, activeCat) {
+  function anySelected(state) {
+    return !!(state?.cats?.down || state?.cats?.reduced || state?.cats?.complete);
+  }
+
+  function renderList(root, items, state) {
     const wrap = root.querySelector("#sminiListWrap");
     const list = root.querySelector("#sminiList");
     if (!wrap || !list) return;
 
-    if (!activeCat) {
+    if (!anySelected(state)) {
       wrap.classList.remove("is-open");
       list.innerHTML = "";
       return;
     }
 
-    const filtered = filterItems(items, activeCat);
     wrap.classList.add("is-open");
 
-    if (!filtered.length) {
-      list.innerHTML = `<div class="smini-empty">Nothing in this category.</div>`;
-      return;
-    }
-
+    const order = ["down", "reduced", "complete"]; // fixed stacking order
     let html = "";
-    for (let i = 0; i < filtered.length; i++) {
-      const it = filtered[i];
-      const wo = String(it?.workOrderNumber || "").trim() || "—";
-      const asset = pickAssetId(it);
-      const desc = pickDesc(it);
 
-      html += `
-        <div class="${esc(itemClass(it))}">
-          <div class="smini-topline">
-            <div class="smini-meta">WO ${esc(wo)}</div>
-            <div class="smini-meta" style="opacity:0.75;">${esc(asset)}</div>
-          </div>
-          <div class="smini-desc" title="${esc(desc)}">${esc(desc || "—")}</div>
-        </div>`;
+    for (const cat of order) {
+      if (!state.cats[cat]) continue;
+
+      const filtered = filterItems(items, cat);
+      if (!filtered.length) {
+        const label = cat === "down" ? "Down" : (cat === "reduced" ? "Reduced" : "Completed");
+        html += `<div class="smini-empty">No ${esc(label)} items.</div>`;
+        continue;
+      }
+
+      for (let i = 0; i < filtered.length; i++) {
+        const it = filtered[i];
+        const wo = String(it?.workOrderNumber || "").trim() || "—";
+        const assetId = pickAssetId(it);
+        const assetDesc = pickAssetDesc(it) || "—";
+        const problem = pickProblemDesc(it) || "—";
+
+        const line1 = `WO ${wo} • ${assetId} • ${assetDesc}`;
+
+        html += `
+          <div class="${esc(itemClass(it))}">
+            <div class="smini-line1" title="${esc(line1)}">
+              <span class="smini-wo">WO ${esc(wo)}</span>
+              <span class="smini-sep">•</span>
+              <span class="smini-assetId">${esc(assetId)}</span>
+              <span class="smini-sep">•</span>
+              <span class="smini-assetDesc">${esc(assetDesc)}</span>
+            </div>
+            <div class="smini-line2" title="${esc(problem)}">${esc(problem)}</div>
+          </div>`;
+      }
     }
 
     list.innerHTML = html;
   }
 
-  function setActive(root, cat) {
+  function setActive(root, state) {
     const btns = Array.from(root.querySelectorAll(".smini-badge[data-cat]"));
     btns.forEach(b => {
-      const is = String(b.getAttribute("data-cat") || "") === cat;
+      const c = String(b.getAttribute("data-cat") || "");
+      const is = !!state?.cats?.[c];
       b.classList.toggle("is-active", is);
       b.setAttribute("aria-pressed", is ? "true" : "false");
     });
@@ -237,15 +266,15 @@
       const cat = String(btn.getAttribute("data-cat") || "");
       if (!cat) return;
 
-      state.activeCat = (state.activeCat === cat) ? "" : cat;
-      setActive(root, state.activeCat);
-      renderList(root, state.items, state.activeCat);
+      state.cats[cat] = !state.cats[cat];
+      setActive(root, state);
+      renderList(root, state.items, state);
     });
   }
 
   async function refresh(root, state) {
     const list = root.querySelector("#sminiList");
-    if (list && state.activeCat) list.innerHTML = `<div class="smini-empty">Loading…</div>`;
+    if (list && anySelected(state)) list.innerHTML = `<div class="smini-empty">Loading…</div>`;
 
     try {
       const data = await loadStatus();
@@ -259,10 +288,10 @@
 
       state.items = items;
       renderCounts(root, state.items);
-      renderList(root, state.items, state.activeCat);
+      renderList(root, state.items, state);
     } catch (err) {
       // If the widget is collapsed, fail quietly (counts stay as-is).
-      if (state.activeCat) {
+      if (anySelected(state)) {
         const wrap = root.querySelector("#sminiListWrap");
         const list = root.querySelector("#sminiList");
         if (wrap && list) {
@@ -278,9 +307,9 @@
     const root = (typeof rootId === "string") ? document.getElementById(rootId) : rootId;
     if (!root) return;
 
-    const state = { items: [], activeCat: "", __wired: false };
+    const state = { items: [], cats: { down: false, reduced: false, complete: false }, __wired: false };
     wire(root, state);
-    setActive(root, "");
+    setActive(root, state);
     refresh(root, state);
   }
 
