@@ -1135,12 +1135,21 @@ body{
   .page-layout > aside.side-col .widget-spacer{ display: block; }
 
   .backlogRowTop{
-    grid-template-columns: 1fr auto !important;
+    grid-template-columns: minmax(0, 1fr) 38px !important;
     grid-template-areas:
-      "task task"
-      "desc desc"
+      "task toggle"
+      "desc toggle"
       "status toggle" !important;
+    gap: 8px;
+    padding: 8px 10px;
+    align-items: start;
   }
+
+  .backlogTask{ grid-area: task; }
+  .backlogDesc{ grid-area: desc; }
+  .backlogStatusSlot{ grid-area: status; justify-content: flex-start; }
+  .backlogToggle{ grid-area: toggle; align-self: start; justify-self: end; }
+
 }
 
 /* =========================
