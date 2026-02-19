@@ -1329,59 +1329,78 @@ body{
 
 .statusMiniWidget{
   padding: 12px 14px 14px 14px;
+  container-type: inline-size; /* enables cqw sizing so badges scale with the widget */
 }
 
 .smini-top{
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 12px;
-  padding: 2px 0 2px 0;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: clamp(10px, 3cqw, 18px);
+  padding: 6px 0 2px 0;
 }
 
 .smini-badge{
-  width: 46px;
-  height: 46px;
+  --sminiSize: clamp(84px, 20cqw, 128px);
+  width: var(--sminiSize);
+  height: var(--sminiSize);
   border-radius: 999px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-weight: 900;
-  font-size: 18px;
+  font-size: clamp(24px, 7cqw, 38px);
   letter-spacing: 0.02em;
-  background: var(--panel2);
-  border: 2px solid var(--border);
-  color: var(--text);
+  border: 3px solid var(--border);
   cursor: pointer;
   user-select: none;
-  transition: transform .06s ease, background-color .12s ease, border-color .12s ease, filter .12s ease;
+  touch-action: manipulation;
+  transition: transform .06s ease, filter .12s ease, box-shadow .12s ease, border-width .12s ease;
 }
 
 .smini-badge:hover{
-  filter: brightness(1.05);
+  filter: brightness(1.06);
 }
 
 .smini-badge:active{
-  transform: translateY(1px);
+  transform: translateY(1px) scale(0.99);
 }
 
+.smini-badge:focus-visible{
+  outline: 3px solid rgba(255,255,255,0.75);
+  outline-offset: 3px;
+}
+
+:root[data-theme="light"] .smini-badge:focus-visible{
+  outline: 3px solid rgba(0,0,0,0.35);
+}
+
+/* Filled all the time (selection is a ring + slight scale) */
 .smini-badge.is-active{
-  border-width: 3px;
+  border-width: 5px;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.55);
 }
 
-.smini-badge.down.is-active{
+:root[data-theme="light"] .smini-badge.is-active{
+  box-shadow: 0 0 0 4px rgba(0,0,0,0.20);
+}
+
+.smini-badge.down{
   background: var(--badBg);
   border-color: var(--badBorder);
   color: var(--badText);
 }
 
-.smini-badge.reduced.is-active{
+.smini-badge.reduced{
   background: var(--warnBg);
   border-color: var(--warnBorder);
   color: var(--warnText);
 }
 
-.smini-badge.complete.is-active{
+.smini-badge.complete{
   background: var(--goodBg);
   border-color: var(--goodBorder);
   color: var(--goodText);
