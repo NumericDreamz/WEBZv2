@@ -1527,3 +1527,37 @@ body{
   padding: 6px 2px;
   color: var(--muted);
 }
+
+/* Status Mini trapezoid glyph (scoped) */
+.sm-glyph{
+  width: 100%;
+  max-width: 520px;
+  margin: 10px auto 6px;
+  user-select: none;
+}
+.sm-glyph svg{ width: 100%; height: auto; display:block; }
+
+.sm-shape{ cursor:pointer; outline:none; }
+.sm-fill{ opacity:1; }
+.sm-stroke{
+  fill:none;
+  stroke: rgba(0,0,0,0.75);
+  stroke-width: 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.sm-down .sm-fill{ fill:#d61b1b; }
+.sm-reduced .sm-fill{ fill:#f1d312; }
+.sm-complete .sm-fill{ fill:#1fa84b; }
+
+.sm-count{ font-weight:900; font-size:44px; fill:rgba(0,0,0,0.90); }
+.sm-label,.sm-top{ font-weight:900; letter-spacing:1px; font-size:16px; fill:rgba(0,0,0,0.90); }
+
+.sm-shape.is-selected .sm-stroke{ stroke: rgba(255,255,255,0.85); stroke-width: 5; }
+.sm-shape.is-selected{ filter: drop-shadow(0 0 10px rgba(255,255,255,0.18)); transform: scale(1.02); transform-origin:center; }
+
+@media (max-width: 520px){
+  .sm-count{ font-size: 52px; }
+  .sm-label,.sm-top{ font-size: 18px; }
+}
+
