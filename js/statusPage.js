@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  console.log("[StatusPage] build 2026-02-13_01 loaded");
+  console.log("[StatusPage] build 2026-02-19_02 loaded");
 
   const DEFAULTS = { timeoutMs: 10000 };
 
@@ -103,11 +103,52 @@
   }
 
   function prettyTime(ts) {
+    // “Last update” should be in local time.
     try {
       const d = new Date(ts);
-      return d.toLocaleString();
+      return d.toLocaleString("en-US", { timeZone: "America/Chicago" });
     } catch (_) {
       return "";
+    }
+  }
+
+  function formatCstMinute(isoString) {
+    const ms = parseDateMaybe(isoString);
+    if (!ms) return "";
+
+    try {
+      const fmt = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Chicago",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      });
+
+      const parts = fmt.formatToParts(new Date(ms));
+      const get = (t) => parts.find(p => p.type === t)?.value || "";
+      const y = get("year");
+      const m = get("month");
+      const d = get("day");
+      const h = get("hour");
+      const min = get("minute");
+      if (!y || !m || !d || !h || !min) return "";
+      return `${y}-${m}-${d} ${h}:${min}`;
+    } catch (_) {
+      // Fallback: best effort local conversion.
+      try {
+        const d = new Date(ms);
+        const y = String(d.getFullYear());
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const da = String(d.getDate()).padStart(2, "0");
+        const h = String(d.getHours()).padStart(2, "0");
+        const mi = String(d.getMinutes()).padStart(2, "0");
+        return `${y}-${m}-${da} ${h}:${mi}`;
+      } catch (_) {
+        return "";
+      }
     }
   }
 
@@ -138,11 +179,20 @@
   }
 
   function pickAssetLine(item) {
+    // First line on the cards: Asset ID, Asset Description, Sub-location
     const assetId = String(item?.assetId || "").trim();
     const eqId = String(item?.equipmentId || "").trim();
     const left = assetId ? assetId : (eqId ? `EQ ${eqId}` : "Unknown Asset");
-    const site = String(item?.site || "").trim();
-    return site ? `${left} @ ${site}` : left;
+
+    const assetDesc = String(item?.assetDescription || "").trim();
+    const subLoc = String(item?.subLocation || "").trim();
+
+    const parts = [];
+    parts.push(left);
+    if (assetDesc) parts.push(assetDesc);
+    if (subLoc) parts.push(subLoc);
+
+    return parts.join("; ");
   }
 
   function pillHtml(item) {
@@ -239,15 +289,11 @@
       if (isReduced(it?.operationalStatus)) reducedCount++;
     }
 
-    const openCount = downCount + reducedCount;
-
     const downEl = $("smDownCount");
     const redEl = $("smReducedCount");
-    const openEl = $("smOpenCount");
     const compEl = $("smCompleteCount");
     if (downEl) downEl.textContent = String(downCount);
     if (redEl) redEl.textContent = String(reducedCount);
-    if (openEl) openEl.textContent = String(openCount);
     if (compEl) compEl.textContent = String(completeCount);
 
     const updatedEl = $("smUpdated");
@@ -262,17 +308,18 @@
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const wo = String(it?.workOrderNumber || "").trim() || ("row_" + i);
-      const desc = String(it?.assetDescription || it?.workOrderDescription || "").trim();
+      const problem = String(it?.workOrderDescription || "").trim();
       const woText = String(it?.workOrderNumber || "").trim();
-      const stamp = String(it?.escalatedAt || it?.emailReceivedAt || "").trim();
+      const stampRaw = String(it?.escalatedAt || it?.emailReceivedAt || "").trim();
+      const stamp = formatCstMinute(stampRaw) || "";
 
       html += `
         <div class="${rowClass(it)}" data-wo="${esc(wo)}">
           <div class="sm-rowTop">
             <div class="sm-rowMain">
               <div class="sm-asset" title="${esc(pickAssetLine(it))}">${esc(pickAssetLine(it))}</div>
-              <div class="sm-desc" title="${esc(desc)}">${esc(desc || "—")}</div>
-              <div class="sm-wo">WO: ${esc(woText || "—")}  <span style="opacity:0.55; padding:0 6px;">•</span>  ${esc(stamp || "")}</div>
+              <div class="sm-wo">WO: ${esc(woText || "—")}${stamp ? `  <span style=\"opacity:0.55; padding:0 6px;\">•</span>  ${esc(stamp)}` : ""}</div>
+              <div class="sm-desc" title="${esc(problem)}">${esc(problem || "—")}</div>
             </div>
             <div class="sm-right">
               ${pillHtml(it)}

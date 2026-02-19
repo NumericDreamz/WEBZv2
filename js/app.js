@@ -35,6 +35,9 @@
       // ✅ Backlog widget (fills #backlogList inside your existing section)
       window.PortalWidgets.Backlog?.init("backlogList", { limit: 50 });
 
+      // Status Monitor mini widget (index below backlog)
+      window.PortalWidgets.StatusMini?.init("statusMiniWidget");
+
       console.log("[Portal] boot complete");
     } catch (err) {
       console.error("[Portal] boot crashed:", err);
