@@ -1568,6 +1568,10 @@ body{
 
 @media (max-width: 520px){
   .sm-count{ font-size: 52px; }
-  .sm-label,.sm-top{ font-size: 18px; }
+  .sm-label, .sm-top{
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
 }
 
