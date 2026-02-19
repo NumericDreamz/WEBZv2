@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  console.log("[StatusMini] build 2026-02-19_03 loaded");
+  console.log("[StatusMini] build 2026-02-19_04 loaded");
 
   window.PortalWidgets = window.PortalWidgets || {};
 
@@ -121,8 +121,6 @@
   }
 
   function pickProblemDesc(item) {
-    // "What is actually wrong" tends to live here.
-    // Fallbacks keep UI from going blank if upstream changes.
     return String(
       item?.workOrderDescription ||
       item?.notes ||
@@ -153,12 +151,11 @@
     return bt - at;
   }
 
-  function normalizeCat(cat) {
-    const c = String(cat || "").trim().toLowerCase();
-    if (c === "complete") return "completed";
-    if (c === "completed") return "completed";
+  function normalizeCat(raw) {
+    const c = String(raw || "").trim().toLowerCase();
     if (c === "down") return "down";
     if (c === "reduced") return "reduced";
+    if (c === "complete" || c === "completed") return "completed";
     return "";
   }
 
@@ -176,12 +173,12 @@
       if (isReduced(it?.operationalStatus)) reduced++;
     }
 
-    // NEW SVG ids
+    // SVG ids
     setTextIfExists(root, "#smDownCount", down);
     setTextIfExists(root, "#smReducedCount", reduced);
     setTextIfExists(root, "#smCompleteCount", completed);
 
-    // OLD circle ids (if still present anywhere)
+    // legacy ids (if present)
     setTextIfExists(root, "#sminiDownCount", down);
     setTextIfExists(root, "#sminiReducedCount", reduced);
     setTextIfExists(root, "#sminiCompleteCount", completed);
@@ -218,7 +215,7 @@
 
     wrap.classList.add("is-open");
 
-    const order = ["down", "reduced", "completed"]; // fixed stacking order
+    const order = ["down", "reduced", "completed"];
     let html = "";
 
     for (const cat of order) {
@@ -231,8 +228,7 @@
         continue;
       }
 
-      for (let i = 0; i < filtered.length; i++) {
-        const it = filtered[i];
+      for (const it of filtered) {
         const wo = String(it?.workOrderNumber || "").trim() || "—";
         const assetId = pickAssetId(it);
         const assetDesc = pickAssetDesc(it) || "—";
@@ -258,25 +254,31 @@
   }
 
   function setActive(root, state) {
-    // NEW: SVG trapezoids
-    const shapes = Array.from(root.querySelectorAll("#smGlyph .sm-shape[data-key]"));
-    shapes.forEach(g => {
+    // SVG shapes
+    root.querySelectorAll("#smGlyph .sm-shape[data-key]").forEach(g => {
       const key = normalizeCat(g.getAttribute("data-key"));
       if (!key) return;
-      const is = !!state?.cats?.[key];
-      g.classList.toggle("is-selected", is);
-      g.setAttribute("aria-pressed", is ? "true" : "false");
+      const on = !!state.cats[key];
+      g.classList.toggle("is-selected", on);
+      g.setAttribute("aria-pressed", on ? "true" : "false");
     });
 
-    // OLD: badges (if present)
-    const btns = Array.from(root.querySelectorAll(".smini-badge[data-cat]"));
-    btns.forEach(b => {
+    // legacy badges (if present)
+    root.querySelectorAll(".smini-badge[data-cat]").forEach(b => {
       const key = normalizeCat(b.getAttribute("data-cat"));
       if (!key) return;
-      const is = !!state?.cats?.[key];
-      b.classList.toggle("is-active", is);
-      b.setAttribute("aria-pressed", is ? "true" : "false");
+      const on = !!state.cats[key];
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
     });
+  }
+
+  function toggle(root, state, cat) {
+    const key = normalizeCat(cat);
+    if (!key) return;
+    state.cats[key] = !state.cats[key];
+    setActive(root, state);
+    renderList(root, state.items, state);
   }
 
   function wire(root, state) {
@@ -284,52 +286,27 @@
     state.__wired = true;
 
     const refreshBtn = root.querySelector("#sminiRefresh");
-    if (refreshBtn) {
-      refreshBtn.addEventListener("click", () => refresh(root, state));
-    }
+    if (refreshBtn) refreshBtn.addEventListener("click", () => refresh(root, state));
 
-    // Click handling (SVG + old badges)
-    root.addEventListener("click", (e) => {
-      const t = e.target;
-
-      // SVG trapezoid group click
-      const shape = t && t.closest ? t.closest("#smGlyph .sm-shape[data-key]") : null;
-      if (shape) {
-        const key = normalizeCat(shape.getAttribute("data-key"));
-        if (!key) return;
-        state.cats[key] = !state.cats[key];
-        setActive(root, state);
-        renderList(root, state.items, state);
-        return;
-      }
-
-      // Old badge click (if still present)
-      const btn = t && t.closest ? t.closest(".smini-badge[data-cat]") : null;
-      if (btn) {
-        const key = normalizeCat(btn.getAttribute("data-cat"));
-        if (!key) return;
-        state.cats[key] = !state.cats[key];
-        setActive(root, state);
-        renderList(root, state.items, state);
-      }
-    });
-
-    // Keyboard activation for SVG shapes
-    root.addEventListener("keydown", (e) => {
-      const k = e.key;
-      if (k !== "Enter" && k !== " ") return;
-
-      const t = e.target;
-      const shape = t && t.closest ? t.closest("#smGlyph .sm-shape[data-key]") : null;
-      if (!shape) return;
-
-      e.preventDefault();
-      const key = normalizeCat(shape.getAttribute("data-key"));
+    // Bind SVG shapes directly (reliable across mobile browsers)
+    root.querySelectorAll("#smGlyph .sm-shape[data-key]").forEach(g => {
+      const key = normalizeCat(g.getAttribute("data-key"));
       if (!key) return;
 
-      state.cats[key] = !state.cats[key];
-      setActive(root, state);
-      renderList(root, state.items, state);
+      g.addEventListener("click", () => toggle(root, state, key));
+      g.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          toggle(root, state, key);
+        }
+      });
+    });
+
+    // Legacy badge click (if present)
+    root.addEventListener("click", (e) => {
+      const btn = e.target && e.target.closest ? e.target.closest(".smini-badge[data-cat]") : null;
+      if (!btn) return;
+      toggle(root, state, btn.getAttribute("data-cat"));
     });
   }
 
@@ -339,9 +316,7 @@
 
     try {
       const data = await loadStatus();
-      if (!data || data.ok !== true) {
-        throw new Error(String(data?.error || "Status fetch failed"));
-      }
+      if (!data || data.ok !== true) throw new Error(String(data?.error || "Status fetch failed"));
 
       const items = Array.isArray(data.items) ? data.items.slice() : [];
       items.sort(sortNewestFirst);
@@ -350,13 +325,12 @@
       renderCounts(root, state.items);
       renderList(root, state.items, state);
     } catch (err) {
-      // If the widget is collapsed, fail quietly (counts stay as-is).
       if (anySelected(state)) {
         const wrap = root.querySelector("#sminiListWrap");
-        const list = root.querySelector("#sminiList");
-        if (wrap && list) {
+        const listEl = root.querySelector("#sminiList");
+        if (wrap && listEl) {
           wrap.classList.add("is-open");
-          list.innerHTML = `<div class="smini-empty">Status fetch failed: ${esc(err?.message || String(err))}</div>`;
+          listEl.innerHTML = `<div class="smini-empty">Status fetch failed: ${esc(err?.message || String(err))}</div>`;
         }
       }
       console.warn("[StatusMini] refresh failed:", err);
