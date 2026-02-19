@@ -1322,6 +1322,16 @@ body{
 :root[data-theme="light"] .backlogWidget .seg-unassigned{ stroke: rgba(0,0,0,0.28); }
 :root[data-theme="light"] .backlogWidget .dot-unassigned{ background: rgba(0,0,0,0.28); }
 
+@media (max-width: 520px){
+  /* keep backlog left indicator from getting clipped on mobile */
+  #backlogWidget, #backlogWidget * { box-sizing: border-box; }
+  #backlogWidget .backlog-card,
+  #backlogWidget .backlog-item { overflow: visible; }
+
+  /* give the left status dot/strip room to exist */
+  #backlogWidget .backlog-item { padding-left: 16px; }
+  #backlogWidget .backlog-indicator { left: 8px !important; }
+}
 
 /* ===========================
    Status Monitor mini widget (index)
