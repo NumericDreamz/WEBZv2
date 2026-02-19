@@ -116,28 +116,31 @@
       <!-- ================== BACKLOG WIDGET END ================== -->
 
       <!-- ================= STATUS MONITOR MINI START ================ -->
-      <section id="statusMiniWidget" class="widget statusMiniWidget" aria-label="Status Monitor summary">
-        <div class="widgetHeader">
-          <div class="widgetTitle">Status Monitor</div>
-          <button id="sminiRefresh" class="btn subtle" type="button" aria-label="Refresh status">Refresh</button>
-        </div>
+<div class="sm-glyph sm-glyph--trap" id="smGlyph" aria-label="Status summary">
+  <svg viewBox="0 0 360 120" role="img" aria-label="Down, Reduced, Complete counts">
+    <g class="sm-shape sm-down" data-key="down" tabindex="0" role="button" aria-label="Toggle Down list">
+      <polygon class="sm-fill" points="0,10 110,10 90,110 20,110"></polygon>
+      <polygon class="sm-stroke" points="0,10 110,10 90,110 20,110"></polygon>
+      <text class="sm-count" x="55" y="62" text-anchor="middle" dominant-baseline="middle" id="smDownCount">0</text>
+      <text class="sm-label" x="55" y="98" text-anchor="middle" dominant-baseline="middle">DOWN</text>
+    </g>
 
-        <div class="smini-top" aria-label="Status counts">
-          <button class="smini-badge down" type="button" data-cat="down" aria-label="Down items" aria-pressed="false">
-            <span id="sminiDownCount">0</span>
-          </button>
-          <button class="smini-badge reduced" type="button" data-cat="reduced" aria-label="Reduced items" aria-pressed="false">
-            <span id="sminiReducedCount">0</span>
-          </button>
-          <button class="smini-badge complete" type="button" data-cat="complete" aria-label="Completed items" aria-pressed="false">
-            <span id="sminiCompleteCount">0</span>
-          </button>
-        </div>
+    <g class="sm-shape sm-reduced" data-key="reduced" tabindex="0" role="button" aria-label="Toggle Reduced list">
+      <polygon class="sm-fill" points="125,10 235,10 215,110 145,110"></polygon>
+      <polygon class="sm-stroke" points="125,10 235,10 215,110 145,110"></polygon>
+      <text class="sm-top" x="180" y="28" text-anchor="middle" dominant-baseline="middle">REDUCED</text>
+      <text class="sm-count" x="180" y="70" text-anchor="middle" dominant-baseline="middle" id="smReducedCount">0</text>
+    </g>
 
-        <div id="sminiListWrap" class="smini-listWrap" aria-label="Status list">
-          <div id="sminiList" class="smini-list"></div>
-        </div>
-      </section>
+    <g class="sm-shape sm-complete" data-key="completed" tabindex="0" role="button" aria-label="Toggle Complete list">
+      <polygon class="sm-fill" points="250,10 360,10 340,110 270,110"></polygon>
+      <polygon class="sm-stroke" points="250,10 360,10 340,110 270,110"></polygon>
+      <text class="sm-count" x="305" y="62" text-anchor="middle" dominant-baseline="middle" id="smCompleteCount">0</text>
+      <text class="sm-label" x="305" y="98" text-anchor="middle" dominant-baseline="middle">COMPLETE</text>
+    </g>
+  </svg>
+</div>
+      
       <!-- ================= STATUS MONITOR MINI END ================== -->
 
 
