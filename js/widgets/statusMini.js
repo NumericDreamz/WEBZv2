@@ -1,9 +1,10 @@
 (function () {
   "use strict";
 
-  console.log("[StatusMini] build 2026-02-19_05 loaded");
+  console.log("[StatusMini] build 2026-02-19_02 loaded");
 
   window.PortalWidgets = window.PortalWidgets || {};
+
   const DEFAULTS = { timeoutMs: 10000 };
 
   function esc(s) {
@@ -26,6 +27,7 @@
         };
       }
     } catch (_) {}
+
     return {
       webAppUrl: String(window.PORTALSTATE_WEBAPP_URL || "").trim(),
       token: String(window.PORTALSTATE_TOKEN || "").trim()
@@ -76,9 +78,11 @@
   function isDown(st) {
     return String(st || "").trim().toLowerCase() === "down";
   }
+
   function isReduced(st) {
     return String(st || "").trim().toLowerCase() === "reduced";
   }
+
   function isComplete(item) {
     const ws = String(item?.workOrderStatus || "").trim().toLowerCase();
     if (ws === "complete" || ws === "completed") return true;
@@ -117,7 +121,12 @@
   }
 
   function pickProblemDesc(item) {
-    return String(item?.workOrderDescription || item?.notes || item?.subject || "").trim();
+    return String(
+      item?.workOrderDescription ||
+      item?.notes ||
+      item?.subject ||
+      ""
+    ).trim();
   }
 
   function pickAssetId(item) {
@@ -142,37 +151,22 @@
     return bt - at;
   }
 
-  function normalizeCat(raw) {
-    const c = String(raw || "").trim().toLowerCase();
-    if (c === "down") return "down";
-    if (c === "reduced") return "reduced";
-    if (c === "complete" || c === "completed") return "completed";
-    return "";
-  }
-
-  function setTextIfExists(root, selector, text) {
-    const el = root.querySelector(selector);
-    if (el) el.textContent = String(text);
-  }
-
   function renderCounts(root, items) {
-    let down = 0, reduced = 0, completed = 0;
+    let down = 0, reduced = 0, complete = 0;
 
     for (const it of items) {
-      if (isComplete(it)) { completed++; continue; }
+      if (isComplete(it)) { complete++; continue; }
       if (isDown(it?.operationalStatus)) down++;
       if (isReduced(it?.operationalStatus)) reduced++;
     }
 
-    // SVG ids
-    setTextIfExists(root, "#smDownCount", down);
-    setTextIfExists(root, "#smReducedCount", reduced);
-    setTextIfExists(root, "#smCompleteCount", completed);
+    const downEl = root.querySelector("#sminiDownCount");
+    const redEl = root.querySelector("#sminiReducedCount");
+    const compEl = root.querySelector("#sminiCompleteCount");
 
-    // legacy ids (if any remain)
-    setTextIfExists(root, "#sminiDownCount", down);
-    setTextIfExists(root, "#sminiReducedCount", reduced);
-    setTextIfExists(root, "#sminiCompleteCount", completed);
+    if (downEl) downEl.textContent = String(down);
+    if (redEl) redEl.textContent = String(reduced);
+    if (compEl) compEl.textContent = String(complete);
   }
 
   function filterItems(items, cat) {
@@ -182,15 +176,14 @@
     if (cat === "reduced") {
       return items.filter(it => !isComplete(it) && isReduced(it?.operationalStatus)).sort(sortNewestFirst);
     }
-    if (cat === "completed") {
+    if (cat === "complete") {
       return items.filter(it => isComplete(it)).sort(sortNewestFirst);
     }
     return [];
   }
 
   function anySelected(state) {
-    const c = state?.cats || {};
-    return !!(c.down || c.reduced || c.completed);
+    return !!(state?.cats?.down || state?.cats?.reduced || state?.cats?.complete);
   }
 
   function renderList(root, items, state) {
@@ -206,7 +199,7 @@
 
     wrap.classList.add("is-open");
 
-    const order = ["down", "reduced", "completed"];
+    const order = ["down", "reduced", "complete"];
     let html = "";
 
     for (const cat of order) {
@@ -219,7 +212,8 @@
         continue;
       }
 
-      for (const it of filtered) {
+      for (let i = 0; i < filtered.length; i++) {
+        const it = filtered[i];
         const wo = String(it?.workOrderNumber || "").trim() || "—";
         const assetId = pickAssetId(it);
         const assetDesc = pickAssetDesc(it) || "—";
@@ -245,29 +239,13 @@
   }
 
   function setActive(root, state) {
-    root.querySelectorAll("#smGlyph .sm-shape[data-key]").forEach(g => {
-      const key = normalizeCat(g.getAttribute("data-key"));
-      if (!key) return;
-      const on = !!state.cats[key];
-      g.classList.toggle("is-selected", on);
-      g.setAttribute("aria-pressed", on ? "true" : "false");
+    const btns = Array.from(root.querySelectorAll(".smini-badge[data-cat]"));
+    btns.forEach(b => {
+      const c = String(b.getAttribute("data-cat") || "");
+      const is = !!state?.cats?.[c];
+      b.classList.toggle("is-active", is);
+      b.setAttribute("aria-pressed", is ? "true" : "false");
     });
-
-    root.querySelectorAll(".smini-badge[data-cat]").forEach(b => {
-      const key = normalizeCat(b.getAttribute("data-cat"));
-      if (!key) return;
-      const on = !!state.cats[key];
-      b.classList.toggle("is-active", on);
-      b.setAttribute("aria-pressed", on ? "true" : "false");
-    });
-  }
-
-  function toggle(root, state, cat) {
-    const key = normalizeCat(cat);
-    if (!key) return;
-    state.cats[key] = !state.cats[key];
-    setActive(root, state);
-    renderList(root, state.items, state);
   }
 
   function wire(root, state) {
@@ -275,27 +253,20 @@
     state.__wired = true;
 
     const refreshBtn = root.querySelector("#sminiRefresh");
-    if (refreshBtn) refreshBtn.addEventListener("click", () => refresh(root, state));
+    if (refreshBtn) {
+      refreshBtn.addEventListener("click", () => refresh(root, state));
+    }
 
-    // Bind SVG shapes directly (SVG closest() is flaky on some mobile builds)
-    root.querySelectorAll("#smGlyph .sm-shape[data-key]").forEach(g => {
-      const key = normalizeCat(g.getAttribute("data-key"));
-      if (!key) return;
-
-      g.addEventListener("click", () => toggle(root, state, key));
-      g.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          toggle(root, state, key);
-        }
-      });
-    });
-
-    // Legacy badge clicks (if they exist)
     root.addEventListener("click", (e) => {
       const btn = e.target && e.target.closest ? e.target.closest(".smini-badge[data-cat]") : null;
       if (!btn) return;
-      toggle(root, state, btn.getAttribute("data-cat"));
+
+      const cat = String(btn.getAttribute("data-cat") || "");
+      if (!cat) return;
+
+      state.cats[cat] = !state.cats[cat];
+      setActive(root, state);
+      renderList(root, state.items, state);
     });
   }
 
@@ -305,7 +276,9 @@
 
     try {
       const data = await loadStatus();
-      if (!data || data.ok !== true) throw new Error(String(data?.error || "Status fetch failed"));
+      if (!data || data.ok !== true) {
+        throw new Error(String(data?.error || "Status fetch failed"));
+      }
 
       const items = Array.isArray(data.items) ? data.items.slice() : [];
       items.sort(sortNewestFirst);
@@ -316,10 +289,10 @@
     } catch (err) {
       if (anySelected(state)) {
         const wrap = root.querySelector("#sminiListWrap");
-        const listEl = root.querySelector("#sminiList");
-        if (wrap && listEl) {
+        const list = root.querySelector("#sminiList");
+        if (wrap && list) {
           wrap.classList.add("is-open");
-          listEl.innerHTML = `<div class="smini-empty">Status fetch failed: ${esc(err?.message || String(err))}</div>`;
+          list.innerHTML = `<div class="smini-empty">Status fetch failed: ${esc(err?.message || String(err))}</div>`;
         }
       }
       console.warn("[StatusMini] refresh failed:", err);
@@ -330,39 +303,10 @@
     const root = (typeof rootId === "string") ? document.getElementById(rootId) : rootId;
     if (!root) return;
 
-    if (root.dataset && root.dataset.sminiInit === "1") return;
-    if (root.dataset) root.dataset.sminiInit = "1";
-
-    const state = {
-      items: [],
-      cats: { down: false, reduced: false, completed: false },
-      __wired: false
-    };
-
+    const state = { items: [], cats: { down: false, reduced: false, complete: false }, __wired: false };
     wire(root, state);
     setActive(root, state);
     refresh(root, state);
-  }
-
-  // Auto-init safety net: if app.js order/caching prevents init, we still boot.
-  function autoInit() {
-    const glyph = document.getElementById("smGlyph");
-    if (!glyph) return;
-
-    let p = glyph.parentElement;
-    while (p && p !== document.body) {
-      if (p.querySelector("#sminiListWrap") && p.querySelector("#sminiList")) {
-        init(p);
-        return;
-      }
-      p = p.parentElement;
-    }
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", autoInit, { once: true });
-  } else {
-    autoInit();
   }
 
   window.PortalWidgets.StatusMini = { init };
