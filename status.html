@@ -6,8 +6,8 @@
   <title>Status Monitor</title>
 
   <link rel="icon" href="favicon.ico" />
-  <link rel="stylesheet" href="css/styles.css?v=20260219_04" />
-  <link rel="stylesheet" href="css/nav.css?v=20260219_01" />
+  <link rel="stylesheet" href="css/styles.css?v=20260220_01" />
+  <link rel="stylesheet" href="css/nav.css?v=20260220_01" />
 
   <style>
     .page-shell{
@@ -58,28 +58,44 @@
       grid-template-columns: 1fr auto;
       gap: 10px;
       align-items: center;
-      font-size: 12px;
+      font-size: 13px;
       color: rgba(255,255,255,0.88);
+    }
+
+    .sm-statRow > div:first-child{
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.92;
+      font-size: 12px;
     }
 
     .sm-pill{
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 14px;
+      min-width: 92px;
       border-radius: 999px;
       border: 1px solid rgba(255,255,255,0.14);
       background: rgba(0,0,0,0.35);
       font-weight: 900;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      font-size: 11px;
+      font-size: 14px;
       white-space: nowrap;
     }
 
+    .sm-pillCount{
+      font-size: 20px;
+      letter-spacing: 0.02em;
+      line-height: 1;
+    }
+
     .sm-dot{
-      width: 8px;
-      height: 8px;
+      width: 12px;
+      height: 12px;
       border-radius: 999px;
       background: rgba(255,255,255,0.35);
     }
@@ -104,13 +120,6 @@
       color: var(--goodText);
     }
     .sm-pill.complete .sm-dot{ background: var(--goodDot); }
-
-    .sm-pill.open{
-      background: rgba(0,0,0,0.35);
-      border-color: rgba(255,255,255,0.14);
-      color: rgba(255,255,255,0.92);
-    }
-    .sm-pill.open .sm-dot{ background: rgba(255,255,255,0.35); }
 
     .sm-meta{
       margin-top: 10px;
@@ -273,28 +282,22 @@
       <section class="sm-summary" aria-label="Status summary">
         <div class="sm-summaryTitle">Live Summary</div>
 
-        <div class="sm-stats">
-          <div class="sm-statRow">
-            <div>Open</div>
-            <div class="sm-pill open"><span class="sm-dot"></span><span id="smOpenCount">0</span></div>
-          </div>
-          <div class="sm-statRow">
+        <div class="sm-stats">          <div class="sm-statRow">
             <div>Down</div>
-            <div class="sm-pill down"><span class="sm-dot"></span><span id="smDownCount">0</span></div>
+            <div class="sm-pill down"><span class="sm-dot"></span><span class="sm-pillCount" id="smDownCount">0</span></div>
           </div>
           <div class="sm-statRow">
             <div>Reduced</div>
-            <div class="sm-pill reduced"><span class="sm-dot"></span><span id="smReducedCount">0</span></div>
+            <div class="sm-pill reduced"><span class="sm-dot"></span><span class="sm-pillCount" id="smReducedCount">0</span></div>
           </div>
           <div class="sm-statRow">
             <div>Completed</div>
-            <div class="sm-pill complete"><span class="sm-dot"></span><span id="smCompleteCount">0</span></div>
+            <div class="sm-pill complete"><span class="sm-dot"></span><span class="sm-pillCount" id="smCompleteCount">0</span></div>
           </div>
         </div>
 
         <div class="sm-meta">
           <div class="sm-metaLine" id="smUpdated">Last update: —</div>
-          <div class="sm-metaLine">Completed entries show green until midnight, then get deleted from the sheet.</div>
         </div>
       </section>
 
@@ -308,6 +311,6 @@
     </div>
   </div>
 
-  <script src="js/nav.js?v=20260219_01"></script>
+  <script src="js/nav.js?v=20260213_02"></script>
 </body>
 </html>
